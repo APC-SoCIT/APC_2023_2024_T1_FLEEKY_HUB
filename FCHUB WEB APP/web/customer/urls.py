@@ -22,6 +22,10 @@ urlpatterns = [
     path('add-to-cart/<int:pk>/', views.add_to_cart_view, name='add-to-cart'),
     path('remove-from-cart/<int:pk>/', views.remove_from_cart_view, name='remove-from-cart'),
     path('clear-cart/', views.clear_cart_view, name='clear-cart'),
+    path('increase-quantity/<int:cart_item_id>/', views.increase_quantity_view, name='increase-quantity'),
+    path('decrease-quantity/<int:cart_item_id>/', views.decrease_quantity_view, name='decrease-quantity'),
+
+
 
     path('proceed-purchase/', views.proceed_purchase_view, name='proceed-purchase'),
     path('customers/proceed-purchase/pay-online', views.online_payment_view, name='pay-online'),

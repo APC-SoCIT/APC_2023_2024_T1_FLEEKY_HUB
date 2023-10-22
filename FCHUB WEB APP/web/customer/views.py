@@ -231,49 +231,6 @@ def clear_cart_view(request):
     messages.info(request, 'Cart has been cleared successfully!')
 
     return HttpResponseRedirect(reverse('customer:cart'))
-# Order Creation View
-@login_required
-def create_order_view(request):
-    # Get the current user
-    user = request.user
-
-    # Get the customer associated with the user
-    customer = Customer.objects.get(user=user)
-
-    # Get the customer's address (you may need to adjust this part to select the appropriate address)
-    address = Address.objects.filter(customer=customer).first()
-
-    # Get the customer's cart
-    try:
-        cart = Cart.objects.get(customer=customer)
-    except Cart.DoesNotExist:
-        cart = None
-
-    # Initialize total cost
-    total_cost = 0
-
-    if cart:
-        # Get the cart items associated with the customer
-        cart_items = CartItem.objects.filter(cart=cart)
-
-        # Calculate the total cost of the order
-        total_cost = sum(cart_item.product.price * cart_item.quantity for cart_item in cart_items)
-
-        # Clear the user's cart
-        cart_items.delete()
-
-    # Create the order
-    order = Order(customer=customer, status='Pending', shipping_address=address, payment_method='Online', total_price=total_cost)
-    order.save()
-
-    # Render the order details using the template
-    context = {
-        'user': user,
-        'total_cost': total_cost,
-        'shipping_address': address,
-    }
-
-    return render(request, 'process/create_order.html', context)
 
 @login_required
 def delete_from_cart_view(request, pk):
@@ -288,7 +245,43 @@ def delete_from_cart_view(request, pk):
     cart_item.delete()
 
     return redirect('cart')  # Redirect back to the cart page
-# Payment Processing View
+
+@login_required
+def increase_quantity_view(request, cart_item_id):
+    cart_item = get_object_or_404(CartItem, pk=cart_item_id)
+
+    # Increase the quantity by 1
+    cart_item.quantity += 1
+    cart_item.save()
+
+    # Calculate the new total for this item
+    item_total = cart_item.product.price * cart_item.quantity
+
+    # Calculate the new cart total
+    cart = cart_item.cart
+    cart_items = CartItem.objects.filter(cart=cart)
+    total = sum(item.product.price * item.quantity for item in cart_items)
+
+    return JsonResponse({'new_quantity': cart_item.quantity, 'new_item_total': item_total, 'new_cart_total': total})
+
+@login_required
+def decrease_quantity_view(request, cart_item_id):
+    cart_item = get_object_or_404(CartItem, pk=cart_item_id)
+
+    # Decrease the quantity by 1, but not below 1
+    if cart_item.quantity > 1:
+        cart_item.quantity -= 1
+        cart_item.save()
+
+    # Calculate the new total for this item
+    item_total = cart_item.product.price * cart_item.quantity
+
+    # Calculate the new cart total
+    cart = cart_item.cart
+    cart_items = CartItem.objects.filter(cart=cart)
+    total = sum(item.product.price * item.quantity for item in cart_items)
+
+    return JsonResponse({'new_quantity': cart_item.quantity, 'new_item_total': item_total, 'new_cart_total': total})
 
 
 @login_required
@@ -302,7 +295,7 @@ def proceed_purchase_view(request):
 
     # Calculate the total price and quantity
     total = sum(cart_item.product.price for cart_item in cart_items)
-    quantity = sum(cart_item.quantity for cart_item in cart_items)
+    quantity = sum(cart_item.quantity for cart_item in cart_items)  # Calculate total quantity
 
     # Calculate VAT and total with VAT
     vat_rate = Decimal('0.12')
@@ -330,24 +323,6 @@ def proceed_purchase_view(request):
 
     total_price = with_vat + shipping_fee
 
-    # Create the order
-    customer_order = Order(
-        customer=customer,
-        shipping_address=customer_address,
-        payment_method=" ",  # Replace with the actual payment method
-        total_price=total_price,
-        order_date=datetime.now(),  # Set the order date to the current datetime
-    )
-
-    # Generate the order number
-    customer_order.generate_order_number()
-
-    # Save the order
-    customer_order.save()
-
-    fname = f"{customer.first_name} {customer.last_name}"
-
-    # Pass the order and cart items to the payment view
     return render(request, 'process/proceed-purchase.html', {
         'shipping_fee': shipping_fee,
         'total_price': total_price,
@@ -355,12 +330,12 @@ def proceed_purchase_view(request):
         'with_vat': with_vat,
         'cart_items': cart_items,
         'total': total,
-        'quantity': quantity,
+        'quantity': quantity,  # Include quantity in the context
         'user': user,
         'customer': customer,
         'customer_address': customer_address,
-        'customer_order': customer_order
     })
+
 
 
 
@@ -462,14 +437,14 @@ def online_payment_view(request):
                         "line1": customer_address.barangay
                     },
                     "name": fname,
-                    "email": user.email,
+                    "email": customer.email,
                     "phone": customer.phone_number
                 },
                 "send_email_receipt": False,  # Set to False
                 "show_description": True,
                 "show_line_items": True,
-                "cancel_url": "http://127.0.0.1:5000/customer/proceed-purchase/",  # Add cancel URL
-                "success_url": "http://127.0.0.1:5000/customer/home",  # Add Success URL
+                "cancel_url": request.build_absolute_uri('/proceed-purchase/'), # Cancel URL
+                "success_url": request.build_absolute_uri('/customer/home'), #Add Success URL
                 "description": "Order Description",
                 "line_items": line_items,
                 "payment_method_types": ["gcash", "grab_pay", "paymaya"]  # Add payment method types

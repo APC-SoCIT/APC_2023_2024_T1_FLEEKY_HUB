@@ -2,231 +2,247 @@
 {% load static %}
 {% load widget_tweaks %}
 {% block content %}
-
 <style type="text/css">
+    /* General Styles */
+    body {
+        background-color: #f8f8f8;
+        font-family: 'Arial', sans-serif;
+    }
 
-.payment-buttons {
-    text-align: center;
-    margin-top: 20px;
-}
-.payment-buttons .btn {
-    margin: 10px;
-    padding: 10px 20px;
-}
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
 
-.form-style-1 {
-	margin:10px auto;
-	max-width: 400px;
-	padding: 20px 12px 10px 20px;
-	font: 13px "Lucida Sans Unicode", "Lucida Grande", sans-serif;
-}
-.form-style-1 li {
-	padding: 0;
-	display: block;
-	list-style: none;
-	margin: 10px 0 0 0;
-}
-.form-style-1 label{
-	margin:0 0 3px 0;
-	padding:0px;
-	display:block;
-	font-weight: bold;
-}
-.form-style-1 input[type=text],
-.form-style-1 input[type=date],
-.form-style-1 input[type=datetime],
-.form-style-1 input[type=number],
-.form-style-1 input[type=search],
-.form-style-1 input[type=time],
-.form-style-1 input[type=url],
-.form-style-1 input[type=email],
-textarea,
-select{
-	box-sizing: border-box;
-	-webkit-box-sizing: border-box;
-	-moz-box-sizing: border-box;
-	border:1px solid #BEBEBE;
-	padding: 7px;
-	margin:0px;
-	-webkit-transition: all 0.30s ease-in-out;
-	-moz-transition: all 0.30s ease-in-out;
-	-ms-transition: all 0.30s ease-in-out;
-	-o-transition: all 0.30s ease-in-out;
-	outline: none;
-}
-.form-style-1 input[type=text]:focus,
-.form-style-1 input[type=date]:focus,
-.form-style-1 input[type=datetime]:focus,
-.form-style-1 input[type=number]:focus,
-.form-style-1 input[type=search]:focus,
-.form-style-1 input[type=time]:focus,
-.form-style-1 input[type=url]:focus,
-.form-style-1 input[type=email]:focus,
-.form-style-1 textarea:focus,
-.form-style-1 select:focus{
-	-moz-box-shadow: 0 0 8px #88D5E9;
-	-webkit-box-shadow: 0 0 8px #88D5E9;
-	box-shadow: 0 0 8px #88D5E9;
-	border: 1px solid #88D5E9;
-}
-.form-style-1 .field-divided{
-	width: 49%;
-}
+    /* Heading Styles */
+    .page-title {
+        font-size: 28px;
+        text-align: center;
+        margin: 20px 0;
+    }
 
-.form-style-1 .field-long{
-	width: 100%;
-}
-.form-style-1 .field-select{
-	width: 100%;
-}
-.form-style-1 .field-textarea{
-	height: 100px;
-}
-.form-style-1 input[type=submit], .form-style-1 input[type=button]{
-	background: #4B99AD;
-	padding: 8px 15px 8px 15px;
-	border: none;
-	color: #fff;
-}
-.form-style-1 input[type=submit]:hover, .form-style-1 input[type=button]:hover{
-	background: #4691A4;
-	box-shadow:none;
-	-moz-box-shadow:none;
-	-webkit-box-shadow:none;
-}
-.form-style-1 .required{
-	color:red;
-}
+    /* Payment Styles */
+    .payment-methods {
+        display: flex;
+        justify-content: center;
+        margin: 20px 0;
+    }
 
-/* Create two equal columns that floats next to each other */
-.order_column {
-  float: left;
-  width: 50%;
-  padding: 10px;
-}
+    .payment-method {
+        margin: 0 10px;
+    }
 
-/* Clear floats after the columns */
-.order_row:after {
-  content: "";
-  display: table;
-  clear: both;
-}
+    /* Shipping Fee Styles */
+    .shipping-fees {
+        background-color: #fff;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        margin: 20px 0;
+    }
+
+    .shipping-fee-header {
+        background-color: #f0f0f0;
+        padding: 10px;
+        text-align: center;
+    }
+
+    .shipping-fee-list {
+        list-style: none;
+        padding: 0;
+    }
+
+    .shipping-fee-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px;
+        border-bottom: 1px solid #ddd;
+    }
+
+    /* Order Summary Styles */
+    .order-summary {
+        background-color: #fff;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        margin: 20px 0;
+    }
+
+    .order-summary-header {
+        background-color: #f0f0f0;
+        padding: 10px;
+        text-align: center;
+    }
+
+    .order-summary-table {
+        width: 100%;
+    }
+
+    .order-summary-table th, .order-summary-table td {
+        padding: 10px;
+        border-bottom: 1px solid #ddd;
+        text-align: center;
+    }
+
+    .order-summary-total {
+        font-weight: bold;
+    }
+
+    /* Customer Info Styles */
+    .customer-info {
+        background-color: #fff;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        margin: 20px 0;
+    }
+
+    .customer-info-header {
+        background-color: #f0f0f0;
+        padding: 10px;
+        text-align: center;
+    }
+
+    .customer-info-list {
+        list-style: none;
+        padding: 0;
+    }
+
+    .customer-info-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px;
+        border-bottom: 1px solid #ddd;
+    }
 </style>
-{% if product_in_cart %}
-<form method="post">
-    {% csrf_token %}
-    <hr><h1 class="text-center">Confirm Order</h1><hr><br>
-    <div class="order_row">
-        <div class="order_column"> 
-            <table>
-                <h1>Your Orders: </h1>
-                <thead></thead>
-                {% for p in Products %}
-                {% if p %}
-                <tr>
-                    <th>
-                        <img src="{{ p.product_image.url }}" alt="order" height="150px" width="150px">
-                    </th>
-                    <th><h5 class="text-secondary">(₱ {{ p.price }})</h5></th>
-                    <th><h6 class="text-secondary">{{ p.name }}</h6></th>
-                </tr>
-                <tr><td></td></tr>
-                {% else %}{% endif %}
-                {% endfor %}
-            </table>
-            <hr><br>
-            <div class="container bg-color-primary">
-                <h2>Billing Breakdown: </h2>
-                {{ order.date }}
-                <table>
-                    <tr>
-                        <th>Product Name</th>
-                        <th>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Product Price</th>
-                    </tr>
-                    {% for prd in Products %}
-                    {% if prd %}
-                    <tr>
-                        <th class="text-left">
-                            <p><span>{{ prd.name }}</span></p>
-                        </th>
-                        <th class="text-left">
-                            <p class="text-left">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(₱ {{ prd.price }})</p>
-                        </th>
-                    </tr>
-                    <tr></tr>
-                    {% else %}{% endif %}
-                    {% endfor %}
-                </table>
-                <p>VAT: 12% | {{ vat }}</p>
-                <p>Shipping Fee: {{ customer_address.region }} | ₱ {{ shipping_fee }}</p>
-            </div>
-            <hr>
-            <div class="container bg-color-primary">
-                <p>Total: ₱{{ total }}</p>
-                <p>With VAT: ₱{{ with_vat }}0</p>
-                <p>Total Price: ₱{{ total_price }}0</p>
-            </div>
-            <hr>
-            <div>
-                <h3>Shipping Address Fee Reference:</h3>
-                <p>
-                    <hr><h4 class="text-secondary">Price (300):</h4> NCR <br> Region 1 <br> Region 2 <br> Region 3 <br> Region 4A <br> Region 5 <br><br><hr>
-                    <h4 class="text-secondary">Price (400):</h4> Region 6 <br> Region 7 <br> Region 8 <hr>
-                    <h4 class="text-secondary">Price (500):</h4> Region 9 <br> Region 10 <br> Region 11 <br> Region 12 <br> Region 13 <br> Region CAR <br> Region ARMM <br>
-                </p>
-            </div>
-            <hr>
+
+<div class="container">
+    <h1 class="page-title">Shipping Address Fee Reference</h1>
+    
+    <div class="payment-methods">
+        <div class="payment-method">
+            <h3>Price (300)</h3>
+            <ul class="shipping-fee-list">
+                <li class="shipping-fee-item">NCR</li>
+                <li class="shipping-fee-item">Region 1</li>
+                <li class="shipping-fee-item">Region 2</li>
+                <li class="shipping-fee-item">Region 3</li>
+                <li class="shipping-fee-item">Region 4A</li>
+                <li class="shipping-fee-item">Region 5</li>
+            </ul>
         </div>
-        <div class="order_column">
-            <h1>Customer Info: </h1>
-            <h5 class="text-secondary"><label>Username: <span class=""></span> {{ request.user }}</label></h5>
-            <h5 class="text-secondary"><label>Full Name: <span class=""></span> {{ customer.first_name }} {{ customer.last_name }}</label></h5>
-            <h5 class="text-secondary"><label>Email: <span class=""></span> {{ user.email }}</label></h5>
-            <h5 class="text-secondary"><label>Mobile: <span class=""></span> {{ customer.phone_number }}</label></h5>
-            <h5 class="text-secondary"><label>Shipping Address: <span class=""></span></label></h5>
-            <h6 class="text-secondary">{{ customer_address.street }} {{ customer_address.barangay }}, {{ customer_address.city }} {{ customer_address.province }} <span name="region_text" id="region_text">{{ customer_address.region_text }}</span> ({{ customer_address.zipcode }})</h6>
-            <h5 class="text-secondary"><label>Additional Address Info: <span class=""></span></label>{{ customer_address.detailed_address }}</h5>
-            <br>
-            <hr>
-            <div class="container bg-color-primary">
-                <h2>Total: ₱{{ total_price }}0</h2>
-                <div class="text-center">
-                    <div class="payment-buttons">
-                        <a class="btn btn-success btn-primary rounded" href="COD">
-                            <span class="text-center btn btn-success btn-lg">Cash On Deliver</span>
-                        </a>
-                    </div>
-                    <div class="payment-buttons">
-                        <a id="pay-online-button" class="btn btn-success btn-primary rounded" href="{% url 'customer:pay-online' %}">
-                            <span class="text-center btn btn-success btn-lg">Pay Online</span>
-                        </a>
-                    </div>
-                </div>
+        <div class="payment-method">
+            <h3>Price (400)</h3>
+            <ul class="shipping-fee-list">
+                <li class="shipping-fee-item">Region 6</li>
+                <li class="shipping-fee-item">Region 7</li>
+                <li class="shipping-fee-item">Region 8</li>
+            </ul>
+        </div>
+        <div class="payment-method">
+            <h3>Price (500)</h3>
+            <ul class="shipping-fee-list">
+                <li class="shipping-fee-item">Region 9</li>
+                <li class="shipping-fee-item">Region 10</li>
+                <li class="shipping-fee-item">Region 11</li>
+                <li class="shipping-fee-item">Region 12</li>
+                <li class="shipping-fee-item">Region 13</li>
+                <li class="shipping-fee-item">Region CAR</li>
+                <li class="shipping-fee-item">Region ARMM</li>
+            </ul>
+        </div>
+    </div>
+
+    {% if cart_items %}
+    <div class="shipping-fees">
+        <div class="shipping-fee-header">
+            <h2>Confirm Order</h2>
+        </div>
+        <table class="order-summary-table">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Price</th>
+                    <th>Quantity</th>
+                    <th>Image</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in cart_items %}
+                <tr>
+                    <td>{{ order.product.name }}</td>
+                    <td>₱{{ order.product.price }}</td>
+                    <td>{{ order.quantity }}</td>
+                    <td>
+                        <img src="{{ order.product.product_image.url }}" alt="{{ order.product.name }}" height="150px" width="150px">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <h2>Billing Breakdown:</h2>
+        <table class="order-summary-table">
+            <thead>
+                <tr>
+                    <th>Product Name</th>
+                    <th>Product Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cart_item in cart_items %}
+                <tr>
+                    <td>{{ cart_item.product.name }}</td>
+                    <td>(₱{{ cart_item.product.price }})</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p>VAT: 12% | ₱{{ vat }}</p>
+        <p>Shipping Fee ({{ customer_address.region }}): ₱{{ shipping_fee }}</p>
+        <p class="order-summary-total">Total Price: ₱{{ total }}</p>
+        <p>With VAT: ₱{{ with_vat }}0</p>
+        <p class="order-summary-total">Total Price with Shipping: ₱{{ total_price }}0</p>
+    </div>
+    
+    <div class="customer-info">
+        <div class="customer-info-header">
+            <h2>Shipping Address</h2>
+        </div>
+        <ul class="customer-info-list">
+            <li class="customer-info-item">Shipping to: {{ customer_address.street }}, {{ customer_address.city }}, {{ customer_address.zipcode }}</li>
+        </ul>
+    </div>
+    <div class="customer-info">
+        <div class="customer-info-header">
+            <h2>Customer Info</h2>
+        </div>
+        <ul class="customer-info-list">
+            <li class="customer-info-item">Username: {{ request.user }}</li>
+            <li class="customer-info-item">Full Name: {{ customer.first_name }} {{ customer.last_name }}</li>
+            <li class="customer-info-item">Email: {{ customer.email }}</li>
+            <li class="customer-info-item">Mobile: {{ customer.phone_number }}</li>
+            <li class="customer-info-item">Shipping Address: {{ customer_address.street }}, {{ customer_address.barangay }}, {{ customer_address.city }}, {{ customer_address.province }} ({{ customer_address.zipcode }})</li>
+            <li class="customer-info-item">Additional Address Info: {{ customer_address.detailed_address }}</li>
+        </ul>
+    </div>
+
+    <div class="container bg-color-primary">
+        <h2 class="order-summary-total">Total: ₱{{ total_price }}0</h2>
+        <div class="text-center">
+            <div class="payment-buttons">
+                <a class="btn btn-success btn-primary rounded" href="COD">
+                    <span class="text-center btn btn-success btn-lg">Cash On Delivery</span>
+                </a>
+            </div>
+            <div class="payment-buttons">
+                <a id="pay-online-button" class="btn btn-success btn-primary rounded" href="{% url 'customer:pay-online' %}">
+                    <span class="text-center btn btn-success btn-lg">Pay Online</span>
+                </a>
             </div>
         </div>
     </div>
-</form>
-{% else %}
-<br><br>
-<h1 style="text-align:center; color:red;"> First Add Product In Cart </h1>
-<br><br><br><br><br><br><br><br><br><br>
-{% endif %}
+    </div>
+    {% else %}
+        <h1 class="text-center" style="color: red;">First Add Product In Cart</h1>
+    {% endif %}
+</div>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>
-$(document).ready(function () {
-    // Function to clear the cart and proceed to payment
-    $("#pay-online-button").click(function () {
-        $.ajax({
-            type: "POST",
-            url: "{% url 'customer:clear-cart' %}",
-            data: {},
-            dataType: "json",
-            success: function (data) {
-                // After clearing the cart, redirect to the payment page
-                window.location.href = "{% url 'customer:pay-online' %}";
-            },
-        });
-    });
-});
-</script>
 {% endblock content %}
