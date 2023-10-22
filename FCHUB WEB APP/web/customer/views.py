@@ -170,10 +170,13 @@ def cart_view(request):
     quantity = 0  # Initialize quantity to zero
 
     for cart_item in cart_items:
-        total += cart_item.product.price
+        item_price = cart_item.product.price * cart_item.quantity  # Calculate item price
+        total += item_price  # Add item price to the total
         quantity += cart_item.quantity  # Added quantity
-
-    return render(request, 'process/cart.html', {'cart_items': cart_items, 'total': total, 'quantity': quantity})  # Added quantity to the context dictionary
+    total_price = total
+    print("total", total)
+    print("quantity", quantity)
+    return render(request, 'process/cart.html', {'cart_items': cart_items, 'total': total, 'quantity': quantity, 'total_price': total_price})  # Added quantity to the context dictionary
 
 @login_required
 def add_to_cart_view(request, pk):
@@ -189,6 +192,10 @@ def add_to_cart_view(request, pk):
     else:
         cart_item.quantity += 1
     cart_item.save()
+
+    # Update the cart totals
+    cart.update_totals()
+
     # Inform the user that the product has been added to the cart
     messages.info(request, f'{product.name} added to the cart successfully!')
 
@@ -210,6 +217,9 @@ def remove_from_cart_view(request, pk):
             cart_item.save()
         else:
             cart_item.delete()
+
+        # Update the cart totals
+        cart.update_totals()
 
         # Inform the user that the product has been removed from the cart
         messages.info(request, f'{product.name} removed from the cart.')
@@ -247,62 +257,77 @@ def delete_from_cart_view(request, pk):
     return redirect('cart')  # Redirect back to the cart page
 
 @login_required
-def increase_quantity_view(request, cart_item_id):
-    cart_item = get_object_or_404(CartItem, pk=cart_item_id)
-
-    # Increase the quantity by 1
+def increase_quantity_view(request, pk):
+    # Retrieve the product
+    product = Product.objects.get(id=pk)
+    # Get the customer's cart
+    cart, created = Cart.objects.get_or_create(customer=request.user.customer)
+    # Check if the product is already in the cart
+    cart_item, created = CartItem.objects.get_or_create(cart=cart, product=product)
+    # Increment the quantity
     cart_item.quantity += 1
     cart_item.save()
 
-    # Calculate the new total for this item
-    item_total = cart_item.product.price * cart_item.quantity
+    # Update the cart totals
+    cart.update_totals()
 
-    # Calculate the new cart total
-    cart = cart_item.cart
-    cart_items = CartItem.objects.filter(cart=cart)
-    total = sum(item.product.price * item.quantity for item in cart_items)
+    # Inform the user that the quantity has been increased
+    messages.info(request, f'Quantity of {product.name} increased in the cart.')
 
-    return JsonResponse({'new_quantity': cart_item.quantity, 'new_item_total': item_total, 'new_cart_total': total})
+    return HttpResponseRedirect(reverse('customer:cart'))
 
 @login_required
-def decrease_quantity_view(request, cart_item_id):
-    cart_item = get_object_or_404(CartItem, pk=cart_item_id)
+def decrease_quantity_view(request, pk):
+    # Retrieve the product
+    product = Product.objects.get(id=pk)
 
-    # Decrease the quantity by 1, but not below 1
-    if cart_item.quantity > 1:
-        cart_item.quantity -= 1
-        cart_item.save()
+    # Get the customer's cart
+    cart, created = Cart.objects.get_or_create(customer=request.user.customer)
 
-    # Calculate the new total for this item
-    item_total = cart_item.product.price * cart_item.quantity
+    # Check if the product is in the cart
+    try:
+        cart_item = CartItem.objects.get(cart=cart, product=product)
+        if cart_item.quantity > 1:
+            cart_item.quantity -= 1
+            cart_item.save()
+        else:
+            cart_item.delete()
 
-    # Calculate the new cart total
-    cart = cart_item.cart
-    cart_items = CartItem.objects.filter(cart=cart)
-    total = sum(item.product.price * item.quantity for item in cart_items)
+        # Update the cart totals
+        cart.update_totals()
 
-    return JsonResponse({'new_quantity': cart_item.quantity, 'new_item_total': item_total, 'new_cart_total': total})
+        # Inform the user that the quantity has been decreased
+        messages.info(request, f'Quantity of {product.name} decreased in the cart.')
+    except CartItem.DoesNotExist:
+        pass
+
+    return HttpResponseRedirect(reverse('customer:cart'))
+
+
 
 
 @login_required
 def proceed_purchase_view(request):
     user = request.user
     customer = get_object_or_404(Customer, user=user)
-    customer_address = get_object_or_404(Address, customer=customer)
+    customer_address = get_object_or_404(Address, customer=customer)  # Assuming you have an Address model
 
-    # Fetch the items in the cart
-    cart_items = CartItem.objects.filter(cart__customer=customer)
+    # Retrieve the user's cart
+    cart, created = Cart.objects.get_or_create(customer=customer)
+    cart_items = cart.cartitem_set.all()
 
-    # Calculate the total price and quantity
-    total = sum(cart_item.product.price for cart_item in cart_items)
-    quantity = sum(cart_item.quantity for cart_item in cart_items)  # Calculate total quantity
+    total = cart.total_price  # Use the total price from the Cart model
+    quantity = cart.total_quantity  # Use the total quantity from the Cart model
+    
+    print(total)
+    print(quantity)
 
     # Calculate VAT and total with VAT
     vat_rate = Decimal('0.12')
     vat = total * vat_rate
     with_vat = total + vat
 
-    # Determine shipping fee based on the region
+    # Determine the shipping fee based on the region
     f_region = customer_address.region
     shipping_fee = 0
     total_price = 0
@@ -323,6 +348,7 @@ def proceed_purchase_view(request):
 
     total_price = with_vat + shipping_fee
 
+    # Render the template without saving the order
     return render(request, 'process/proceed-purchase.html', {
         'shipping_fee': shipping_fee,
         'total_price': total_price,
@@ -335,8 +361,6 @@ def proceed_purchase_view(request):
         'customer': customer,
         'customer_address': customer_address,
     })
-
-
 
 
 @login_required

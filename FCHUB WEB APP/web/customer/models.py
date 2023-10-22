@@ -75,15 +75,36 @@ class Address(models.Model):
 
 class Cart(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    item = models.ManyToManyField(Product, through='CartItem')
+    items = models.ManyToManyField(Product, through='CartItem')
+    total_quantity = models.PositiveIntegerField(default=0)
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     def __str__(self):
         return self.customer.user.username + "'s Cart"
+
+    def update_totals(self):
+        total_price = 0
+        total_quantity = 0
+
+        for cart_item in self.cartitem_set.all():
+            cart_item.calculate_item_total()  # Calculate item total for each cart item
+            total_price += cart_item.item_total
+            total_quantity += cart_item.quantity
+
+        self.total_price = total_price
+        self.total_quantity = total_quantity
+        self.save()
 
 class CartItem(models.Model):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
+    item_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    def calculate_item_total(self):
+        self.item_total = self.quantity * self.product.price
+        self.save()
+
 
 
 class Order(models.Model):

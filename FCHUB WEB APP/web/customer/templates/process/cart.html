@@ -73,9 +73,10 @@
       margin-left: 10px;
     }
 
-    .purchase-button:hover{
+    .purchase-button:hover {
       background-color: #0BB100;
     }
+
     .clear-all-button:hover {
       background-color: #DF0C02;
     }
@@ -148,28 +149,25 @@
         window.location.href = "/customer/clear-cart"; // Redirect to clear cart URL
       }
     }
-  </script>
 
-  <script>
-    // Existing JavaScript functions
-
-    function updateQuantity(productID, newQuantity) {
+    // Function to update the quantity
+    function updateQuantity(productID, action) {
       // You can use AJAX here to update the quantity on the server-side
       // For this example, we'll update the quantity directly on the client-side
       const quantityElement = document.getElementById(`quantity-${productID}`);
-      const totalElement = document.getElementById('total-price');
-
       const currentQuantity = parseInt(quantityElement.textContent, 10);
 
-      if (newQuantity === 'increase') {
+      // Perform the appropriate action (increase or decrease)
+      if (action === 'increase') {
         quantityElement.textContent = currentQuantity + 1;
-      } else if (newQuantity === 'decrease' && currentQuantity > 1) {
+      } else if (action === 'decrease' && currentQuantity > 1) {
         quantityElement.textContent = currentQuantity - 1;
       }
 
-      // Calculate the updated total price (you may need to fetch the product price)
+      // Calculate the updated total price
       const totalPrice = calculateTotalPrice();
-      totalElement.textContent = `Total ₱ ${totalPrice.toFixed(2)}`; // Format the total price with 2 decimal places
+      const totalElement = document.getElementById('total-price');
+      totalElement.textContent = `Total ₱ ${totalPrice.toFixed(2)}`;
     }
 
     function calculateTotalPrice() {

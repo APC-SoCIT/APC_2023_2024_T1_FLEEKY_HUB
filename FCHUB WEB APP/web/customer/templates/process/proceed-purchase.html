@@ -22,11 +22,26 @@
         margin: 20px 0;
     }
 
+    /* Two-Column Layout */
+    .row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+
+    .column {
+        flex: 1;
+        margin: 10px;
+        padding: 20px;
+        background-color: #fff;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+    }
+
     /* Payment Styles */
     .payment-methods {
         display: flex;
         justify-content: center;
-        margin: 20px 0;
     }
 
     .payment-method {
@@ -112,137 +127,159 @@
         padding: 10px;
         border-bottom: 1px solid #ddd;
     }
+
+    /* Button Styles */
+    .action-button {
+        display: flex;
+        justify-content: center;
+        margin-top: 20px;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        background-color: #4B99AD;
+        color: #fff;
+        text-decoration: none;
+        border: none;
+        border-radius: 5px;
+        font-weight: bold;
+    }
+
+    .btn:hover {
+        background-color: #4691A4;
+    }
 </style>
 
 <div class="container">
     <h1 class="page-title">Shipping Address Fee Reference</h1>
-    
-    <div class="payment-methods">
-        <div class="payment-method">
-            <h3>Price (300)</h3>
-            <ul class="shipping-fee-list">
-                <li class="shipping-fee-item">NCR</li>
-                <li class="shipping-fee-item">Region 1</li>
-                <li class="shipping-fee-item">Region 2</li>
-                <li class="shipping-fee-item">Region 3</li>
-                <li class="shipping-fee-item">Region 4A</li>
-                <li class="shipping-fee-item">Region 5</li>
-            </ul>
-        </div>
-        <div class="payment-method">
-            <h3>Price (400)</h3>
-            <ul class="shipping-fee-list">
-                <li class="shipping-fee-item">Region 6</li>
-                <li class="shipping-fee-item">Region 7</li>
-                <li class="shipping-fee-item">Region 8</li>
-            </ul>
-        </div>
-        <div class="payment-method">
-            <h3>Price (500)</h3>
-            <ul class="shipping-fee-list">
-                <li class="shipping-fee-item">Region 9</li>
-                <li class="shipping-fee-item">Region 10</li>
-                <li class="shipping-fee-item">Region 11</li>
-                <li class="shipping-fee-item">Region 12</li>
-                <li class="shipping-fee-item">Region 13</li>
-                <li class="shipping-fee-item">Region CAR</li>
-                <li class="shipping-fee-item">Region ARMM</li>
-            </ul>
-        </div>
-    </div>
 
-    {% if cart_items %}
-    <div class="shipping-fees">
-        <div class="shipping-fee-header">
-            <h2>Confirm Order</h2>
-        </div>
-        <table class="order-summary-table">
-            <thead>
-                <tr>
-                    <th>Product</th>
-                    <th>Price</th>
-                    <th>Quantity</th>
-                    <th>Image</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for order in cart_items %}
-                <tr>
-                    <td>{{ order.product.name }}</td>
-                    <td>₱{{ order.product.price }}</td>
-                    <td>{{ order.quantity }}</td>
-                    <td>
-                        <img src="{{ order.product.product_image.url }}" alt="{{ order.product.name }}" height="150px" width="150px">
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        <h2>Billing Breakdown:</h2>
-        <table class="order-summary-table">
-            <thead>
-                <tr>
-                    <th>Product Name</th>
-                    <th>Product Price</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for cart_item in cart_items %}
-                <tr>
-                    <td>{{ cart_item.product.name }}</td>
-                    <td>(₱{{ cart_item.product.price }})</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        <p>VAT: 12% | ₱{{ vat }}</p>
-        <p>Shipping Fee ({{ customer_address.region }}): ₱{{ shipping_fee }}</p>
-        <p class="order-summary-total">Total Price: ₱{{ total }}</p>
-        <p>With VAT: ₱{{ with_vat }}0</p>
-        <p class="order-summary-total">Total Price with Shipping: ₱{{ total_price }}0</p>
-    </div>
-    
-    <div class="customer-info">
-        <div class="customer-info-header">
-            <h2>Shipping Address</h2>
-        </div>
-        <ul class="customer-info-list">
-            <li class="customer-info-item">Shipping to: {{ customer_address.street }}, {{ customer_address.city }}, {{ customer_address.zipcode }}</li>
-        </ul>
-    </div>
-    <div class="customer-info">
-        <div class="customer-info-header">
-            <h2>Customer Info</h2>
-        </div>
-        <ul class="customer-info-list">
-            <li class="customer-info-item">Username: {{ request.user }}</li>
-            <li class="customer-info-item">Full Name: {{ customer.first_name }} {{ customer.last_name }}</li>
-            <li class="customer-info-item">Email: {{ customer.email }}</li>
-            <li class="customer-info-item">Mobile: {{ customer.phone_number }}</li>
-            <li class="customer-info-item">Shipping Address: {{ customer_address.street }}, {{ customer_address.barangay }}, {{ customer_address.city }}, {{ customer_address.province }} ({{ customer_address.zipcode }})</li>
-            <li class="customer-info-item">Additional Address Info: {{ customer_address.detailed_address }}</li>
-        </ul>
-    </div>
-
-    <div class="container bg-color-primary">
-        <h2 class="order-summary-total">Total: ₱{{ total_price }}0</h2>
-        <div class="text-center">
-            <div class="payment-buttons">
-                <a class="btn btn-success btn-primary rounded" href="COD">
-                    <span class="text-center btn btn-success btn-lg">Cash On Delivery</span>
-                </a>
+    <div class="row">
+        <div class="column">
+            <div class="payment-methods">
+                <div class="payment-method">
+                    <h3>Price (300)</h3>
+                    <ul class="shipping-fee-list">
+                        <li class="shipping-fee-item">NCR</li>
+                        <li class="shipping-fee-item">Region 1</li>
+                        <li class="shipping-fee-item">Region 2</li>
+                        <li class="shipping-fee-item">Region 3</li>
+                        <li class="shipping-fee-item">Region 4A</li>
+                        <li class="shipping-fee-item">Region 5</li>
+                    </ul>
+                </div>
             </div>
-            <div class="payment-buttons">
-                <a id="pay-online-button" class="btn btn-success btn-primary rounded" href="{% url 'customer:pay-online' %}">
-                    <span class="text-center btn btn-success btn-lg">Pay Online</span>
-                </a>
+            <div class="column">
+                <div class="payment-method">
+                    <h3>Price (400)</h3>
+                    <ul class="shipping-fee-list">
+                        <li class="shipping-fee-item">Region 6</li>
+                        <li class="shipping-fee-item">Region 7</li>
+                        <li class="shipping-fee-item">Region 8</li>
+                    </ul>
+                </div>
+                <div class="payment-method">
+                    <h3>Price (500)</h3>
+                    <ul class="shipping-fee-list">
+                        <li class="shipping-fee-item">Region 9</li>
+                        <li class="shipping-fee-item">Region 10</li>
+                        <li class="shipping-fee-item">Region 11</li>
+                        <li class="shipping-fee-item">Region 12</li>
+                        <li class="shipping-fee-item">Region 13</li>
+                        <li class="shipping-fee-item">Region CAR</li>
+                        <li class="shipping-fee-item">Region ARMM</li>
+                    </ul>
+                </div>
             </div>
         </div>
-    </div>
-    </div>
+
+        <div class="column">
+            <h1 class="page-title">Confirm Order</h1>
+
+            {% if cart_items %}
+            <div class="order-summary">
+                <div class="order-summary-header">
+                    <h2>Your Orders</h2>
+                </div>
+                <table class="order-summary-table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Price</th>
+                            <th>Quantity</th>
+                            <th>Image</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cart_item in cart_items %}
+                        <tr>
+                            <td>{{ cart_item.product.name }}</td>
+                            <td>₱{{ cart_item.product.price }}</td>
+                            <td>{{ cart_item.quantity }}</td>
+                            <td>
+                                <img src="{{ cart_item.product.product_image.url }}" alt="{{ cart_item.product.name }}" height="150px" width="150px">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div class="order-summary-header">
+                    <h2>Billing Breakdown</h2>
+                </div>
+                <table class="order-summary-table">
+                    <thead>
+                        <tr>
+                            <th>Product Name</th>
+                            <th>Product Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cart_item in cart_items %}
+                        <tr>
+                            <td>{{ cart_item.product.name }}</td>
+                            <td>(₱{{ cart_item.product.price }})</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <p class="order-summary-total">VAT: 12% | ₱{{ vat }}</p>
+                <p class="order-summary-total">Shipping Fee ({{ customer_address.region }}): ₱{{ shipping_fee }}</p>
+                <p class="order-summary-total">Total Price: ₱{{ total_price }}</p>
+                <p class="order-summary-total">With VAT: ₱{{ with_vat }}0</p>
+                <p class="order-summary-total">Total Price with Shipping: ₱{{ total_price }}0</p>
+            </div>
+
+            <div class="customer-info">
+                <div class="customer-info-header">
+                    <h2>Shipping Address</h2>
+                </div>
+                <ul class="customer-info-list">
+                    <li class="customer-info-item">Shipping to: {{ customer_address.street }}, {{ customer_address.city }}, {{ customer_address.zipcode }}</li>
+                </ul>
+            </div>
+
+            <div class="customer-info">
+                <div class="customer-info-header">
+                    <h2>Customer Info</h2>
+                </div>
+                <ul class="customer-info-list">
+                    <li class="customer-info-item">Username: {{ request.user }}</li>
+                    <li class="customer-info-item">Full Name: {{ customer.first_name }} {{ customer.last_name }}</li>
+                    <li class="customer-info-item">Email: {{ customer.email }}</li>
+                    <li class="customer-info-item">Mobile: {{ customer.phone_number }}</li>
+                    <li class="customer-info-item">Shipping Address: {{ customer_address.street }}, {{ customer_address.barangay }}, {{ customer_address.city }}, {{ customer_address.province }} ({{ customer_address.zipcode }})</li>
+                    <li class="customer-info-item">Additional Address Info: {{ customer_address.detailed_address }}</li>
+                </ul>
+            </div>
+
+            <div class="action-button">
+                <a class="btn" href="COD">Cash On Delivery</a>
+                <a class="btn" href="{% url 'customer:pay-online' %}">Pay Online</a>
+            </div>
+        </div>
+        </div>
     {% else %}
-        <h1 class="text-center" style="color: red;">First Add Product In Cart</h1>
-    {% endif %}
+    <h1 class="page-title" style="color: red; text-align: center;">First Add Product In Cart</h1>
+{% endif %}
 </div>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 {% endblock content %}
