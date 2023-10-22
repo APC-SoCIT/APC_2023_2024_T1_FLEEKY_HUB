@@ -1,0 +1,133 @@
+{% extends 'products-header.html' %}
+{% load static %}
+
+{% block title %}FleekyHub{% endblock %}
+
+{% block content %}
+<style media="screen">
+  /* Add some top margin to create space between header and content */
+  .content-container {
+    margin-top: 80px; /* You can adjust the value as needed */
+  }
+
+  /* Reset default margin and padding, and set a base font size and family */
+  body, html {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-size: 16px;
+    font-family: "Helvetica", sans-serif;
+    background-color: #f0f0f0; /* Lighter base color */
+    color: #333; /* Updated text color */
+  }
+
+  /* Page wrapper for vertical alignment */
+  .page-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    margin: 0;
+    padding: 20px;
+  }
+
+  /* Styles for product cards */
+  .el-wrapper {
+    width: 300px;
+    padding: 15px;
+    margin: 15px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease-in-out;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .el-wrapper:hover {
+    transform: scale(1.05);
+  }
+
+  .el-wrapper img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px 8px 0 0;
+    transition: transform 0.3s ease-in-out;
+  }
+
+  .el-wrapper:hover img {
+    transform: scale(1.1);
+  }
+
+  .product-info {
+    padding: 15px;
+  }
+
+  .product-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #3E454C; /* Darker text color */
+    margin-bottom: 8px;
+  }
+
+  .product-description {
+    font-size: 16px;
+    color: #666; /* Slightly darker text color */
+    margin-bottom: 12px;
+  }
+
+  .product-price {
+    font-size: 18px;
+    font-weight: bold;
+    color: #695aa6; /* Updated primary color */
+  }
+
+  .product-details {
+    font-size: 14px;
+    color: #888; /* Lighter text color for details */
+  }
+
+  /* Three-column grid layout */
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 0 -15px;
+  }
+
+  /* Responsive layout - makes the three columns stack on top of each other instead of next to each other */
+  @media screen and (max-width: 600px) {
+    .el-wrapper {
+      width: 100%;
+    }
+  }
+</style>
+
+<div class="content-container"> <!-- Added a container for content -->
+  <div class="page-wrapper">
+    <div class="row">
+      {% if products %}
+      {% for p in products %}
+      <div class="el-wrapper">
+        <img src="{{ p.product_image.url }}" alt="{{ p.name }}">
+        <div class="product-info">
+          <div class="product-title">{{ p.name }}</div>
+          <div class="product-description">{{ p.description }}</div>
+          <div class="product-details">
+            Fabric: {{ p.fabric_type }}<br>
+            Color Type: {{ p.color_type }}<br>
+            Color: {{ p.color }}
+          </div>
+          <div class="product-price">₱ {{ p.price }}</div>
+        </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <!-- Handle the case where no products are available -->
+      <p>No products available.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% endblock content %}

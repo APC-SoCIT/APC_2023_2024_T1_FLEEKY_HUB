@@ -1,0 +1,116 @@
+{% extends 'customer/navbar.html' %}
+{% load static %}
+{% block content %}
+<style>
+
+    /* ... (previous styles) ... */
+
+    /* Combined styles */
+    .card {
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        overflow: hidden;
+        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s, border-color 0.3s;
+    }
+
+    .card:hover {
+        transform: scale(1.03);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        border-color: #695aa6; /* Change border color on hover */
+    }
+
+    .card-title {
+        position: relative;
+    }
+
+    .card-title::after {
+        content: "";
+        position: absolute;
+        width: 100%;
+        height: 2px;
+        background-color: #695aa6; /* Underline color */
+        left: 0;
+        bottom: -5px;
+        transform: scaleX(0);
+        transform-origin: center;
+        transition: transform 0.3s;
+    }
+
+    .card-title:hover::after {
+        transform: scaleX(1); /* Expand the underline on hover */
+    }
+
+    @keyframes fadeInOut {
+        0% {
+            opacity: 0;
+        }
+        10% {
+            opacity: 1;
+        }
+        90% {
+            opacity: 1;
+        }
+        100% {
+            opacity: 0;
+        }
+    }
+</style>
+
+<div class="container mt-5">
+    <div class="row">
+        {% if Products %}
+            <h3 class="text-center text-dark">{{ word }}</h3>
+            <div class="row mt-4">
+                {% for p in Products %}
+                    <div class="col-lg-4 col-md-6 mb-4">
+                        <div class="card">
+                            <img src="{{ p.product_image.url }}" alt="{{ p.name }}" class="card-img-top"
+                                onclick="togglePopOut(this);">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ p.name }}</h5>
+                                <p class="card-text">{{ p.description }}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="price">₱ {{ p.price }}</span>
+                                    <a href="{% url 'customer:add-to-cart' p.id  %}?next_page={{ request.path }}"
+                                       class="btn btn-primary">
+                                        <i class="fa fa-shopping-cart"></i> Add To Cart
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p>No products available.</p>
+        {% endif %}
+    </div>
+</div>
+
+
+<!-- Cart notification -->
+ <div hidden> 
+  <div class="cart-notification" id="cart-notification">
+    Product added to cart!
+  </div>
+</div>
+<script>
+    // Show cart notification when a product is added
+    const cartNotification = document.getElementById('cart-notification');
+    {% if messages %}
+    {% for message in messages %}
+    alert('{{ message }}');
+    cartNotification.style.display = 'block';
+    setTimeout(() => {
+        cartNotification.style.display = 'none';
+    }, 300000); // Hide after 3 seconds
+    {% endfor %}
+    {% endif %}
+
+    // Function to toggle the pop-out effect on image click
+    function togglePopOut(image) {
+        image.closest('.card').classList.toggle('pop-out');
+    }
+</script>
+{% endblock content %}

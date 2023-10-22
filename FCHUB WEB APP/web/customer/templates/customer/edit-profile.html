@@ -1,0 +1,92 @@
+{% extends 'customer/sub-navbar.html' %}
+{% load static %}
+
+{% block title %}Edit Profile - FleekyHub{% endblock %}
+
+{% block content %}
+<div class="container">
+</div>
+
+<!-- EDIT PROFILE FORM -->
+<section style="background-color: #eee;">
+    <div class="container py-5">
+        <div class="row">
+            <div class="col-lg-8 mx-auto"> {# Center the middle column #}
+                {% include 'customer/profile-navbar.html' %}
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h2 class="mb-4">Edit Profile</h2>
+                        <form method="post" enctype="multipart/form-data" id="Form">
+                            {% csrf_token %}
+                            <!-- Profile Picture -->
+                            <div class="form-group">
+                                <label for="{{ customer_form.profile_pic.id_for_label }}">Profile Picture</label>
+                                {{ customer_form.profile_pic }}
+                            </div>
+                            <!-- First Name -->
+                            <div class="form-group">
+                                <label for="{{ customer_form.first_name.id_for_label }}">First Name</label>
+                                {{ customer_form.first_name }}
+                            </div>
+                            <!-- Last Name -->
+                            <div class="form-group">
+                                <label for="{{ customer_form.last_name.id_for_label }}">Last Name</label>
+                                {{ customer_form.last_name }}
+                            </div>
+                            <!-- Email -->
+                            <div class="form-group">
+                                <label for="{{ customer_form.email.id_for_label }}">Email</label>
+                                {{ customer_form.email }}
+                            </div>
+                            <!-- Mobile Number -->
+                            <div class="form-group">
+                                <label for="{{ customer_form.phone_number.id_for_label }}">Mobile Number</label>
+                                {{ customer_form.phone_number }}
+                            </div>
+                            <!-- Address Section -->
+                            <h3>Address</h3>
+                            <!-- Region Dropdown -->
+                            <div class="form-group">
+                                <label for="{{ address_form.region.id_for_label }}">Region</label>
+                                {{ address_form.region }}
+                            </div>
+                            <!-- Province Dropdown -->
+                            <div class="form-group">
+                                <label for="{{ address_form.province.id_for_label }}">Province</label>
+                                {{ address_form.province }}
+                            </div>
+                            <!-- City Dropdown -->
+                            <div class="form-group">
+                                <label for="{{ address_form.city.id_for_label }}">City/Municipality</label>
+                                {{ address_form.city }}
+                            </div>
+                            <!-- Barangay Dropdown -->
+                            <div class="form-group">
+                                <label for="{{ address_form.barangay.id_for_label }}">Barangay</label>
+                                {{ address_form.barangay }}
+                            </div>
+                            <!-- Street -->
+                            <div class="form-group">
+                                <label for="{{ address_form.street.id_for_label }}">Street</label>
+                                {{ address_form.street }}
+                            </div>
+                            <!-- Detailed Address -->
+                            <div class="form-group">
+                                <label for="{{ address_form.detailed_address.id_for_label }}">Detailed Address</label>
+                                {{ address_form.detailed_address }}
+                            </div>
+                            <!-- Zipcode -->
+                            <div class="form-group">
+                                <label for="{{ address_form.zipcode.id_for_label }}">Zipcode</label>
+                                {{ address_form.zipcode }}
+                            </div>
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock content %}

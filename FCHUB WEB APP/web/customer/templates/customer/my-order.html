@@ -1,0 +1,45 @@
+{% extends 'customer/navbar.html' %}
+
+{% block content %}
+
+  <div class="container my-5">
+    <div class="row">
+        <div class="col">
+          <hr>
+          {% include 'customer/profile-navbar.html' %}
+          <hr>
+        </div>
+    </div>
+    <h1 class="mb-4">My Orders</h1>
+    {% if order_bundles %}
+
+      {% for order_bundle in order_bundles %}
+        <h2>Order #{{ order_bundle.order.id }}</h2>
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <th>Product Name</th>
+              <th>Order Status</th>
+              <th>Order Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for product in order_bundle %}
+              {% for pname in order_bundle.products%}
+              <tr>
+                <td>{{ pname.name}}</td>
+                <td>{{ order_bundle.order.status }}</td>
+                <td>{{ order_bundle.order.order_date }}</td>
+              </tr>
+              {% endfor %}
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endfor %}
+    {% else %}
+      <p>No orders found for this customer.</p>
+    {% endif %}
+    
+    <p>Welcome, {{ customer.first_name }} {{ customer.last_name }}!</p>
+  </div>
+{% endblock %}
