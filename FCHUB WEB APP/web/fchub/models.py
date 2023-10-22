@@ -70,6 +70,11 @@ class Product(models.Model):
         self.custom_id = self.custom_product_id
         super(Product, self).save(*args, **kwargs)
 
+
+
+
+
+
 class Material(models.Model):
     name = models.CharField(max_length=250)
     qty = models.CharField(max_length=250)

@@ -121,13 +121,13 @@ class Order(models.Model):
     )
 
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    order_date = models.DateTimeField(auto_now_add=True)
+    order_date = models.DateTimeField(auto_now_add=True)  # Ensure this field is correctly defined
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Pending")
     shipping_address = models.ForeignKey(Address, on_delete=models.CASCADE)
     payment_method = models.CharField(max_length=50, choices=PAYMENT_CHOICES)
     total_price = models.DecimalField(max_digits=30, decimal_places=2)
     order_number = models.CharField(max_length=15, unique=True)
-
+    order_date = models.DateTimeField(auto_now_add=True) 
     def __str__(self):
         return self.order_number
     
@@ -141,6 +141,20 @@ class Order(models.Model):
         if not self.order_number:
             self.generate_order_number()
         super().save(*args, **kwargs)
+
+class OrderItem(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+    item_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    order_number = models.CharField(max_length=15)  # Add this field
+
+    def calculate_item_total(self):
+        self.item_total = self.quantity * self.product.price
+        self.save()
+
+    def __str__(self):
+        return f"{self.product.name} in Order {self.order_number}"
 
 
 class Payment(models.Model):

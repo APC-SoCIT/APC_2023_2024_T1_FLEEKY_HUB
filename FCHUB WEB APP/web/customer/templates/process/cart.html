@@ -152,24 +152,20 @@
 
     // Function to update the quantity
     function updateQuantity(productID, action) {
-      // You can use AJAX here to update the quantity on the server-side
-      // For this example, we'll update the quantity directly on the client-side
-      const quantityElement = document.getElementById(`quantity-${productID}`);
-      const currentQuantity = parseInt(quantityElement.textContent, 10);
-
-      // Perform the appropriate action (increase or decrease)
-      if (action === 'increase') {
-        quantityElement.textContent = currentQuantity + 1;
-      } else if (action === 'decrease' && currentQuantity > 1) {
-        quantityElement.textContent = currentQuantity - 1;
-      }
-
-      // Calculate the updated total price
-      const totalPrice = calculateTotalPrice();
-      const totalElement = document.getElementById('total-price');
-      totalElement.textContent = `Total ₱ ${totalPrice.toFixed(2)}`;
+      // Send an AJAX request to update the quantity
+      const url = action === 'increase' ? `/customer/increase-quantity/${productID}` : `/customer/decrease-quantity/${productID}`;
+      
+      $.ajax({
+        url: url,
+        type: 'POST', // You can use POST or another method as appropriate
+        dataType: 'json',
+        success: function (data) {
+          // Update the client-side view with the updated cart data
+          $('#cart-table').html(data.cart_table);
+          $('#total-price').text(`Total ₱ ${data.total_price.toFixed(2)}`);
+        },
+      });
     }
-
     function calculateTotalPrice() {
       // You need to calculate the total price based on the updated quantities of items
       // Fetch prices and quantities for each item and calculate the total

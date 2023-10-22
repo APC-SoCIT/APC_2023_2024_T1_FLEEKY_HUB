@@ -30,6 +30,8 @@ from django.shortcuts import get_object_or_404
 from .models import Customer, Address, Product
 from django.contrib.auth.models import User
 from datetime import datetime  # Import datetime module
+from django.http import JsonResponse
+from django.utils import timezone
 # Create your views here.
 
 def signup(request):
@@ -258,51 +260,42 @@ def delete_from_cart_view(request, pk):
 
 @login_required
 def increase_quantity_view(request, pk):
-    # Retrieve the product
-    product = Product.objects.get(id=pk)
-    # Get the customer's cart
-    cart, created = Cart.objects.get_or_create(customer=request.user.customer)
-    # Check if the product is already in the cart
-    cart_item, created = CartItem.objects.get_or_create(cart=cart, product=product)
-    # Increment the quantity
-    cart_item.quantity += 1
-    cart_item.save()
+    product_id = pk
+    # Perform the logic to increase the quantity for the given product
+    # Update the cart in the database
 
-    # Update the cart totals
-    cart.update_totals()
+    # After updating the cart, fetch the updated cart data
+    updated_cart_items = CartItem.objects.filter(cart__customer=request.user.customer)
+    total_price = calculate_total_price(updated_cart_items)
 
-    # Inform the user that the quantity has been increased
-    messages.info(request, f'Quantity of {product.name} increased in the cart.')
+    # Return updated cart data in JSON format
+    data = {
+        'cart_table': render_to_string('customer/cart_table.html', {'cart_items': updated_cart_items}),
+        'total_price': total_price,
+    }
+    return JsonResponse(data)
 
-    return HttpResponseRedirect(reverse('customer:cart'))
-
-@login_required
+# Replace this with your specific logic to update the quantity
 def decrease_quantity_view(request, pk):
-    # Retrieve the product
-    product = Product.objects.get(id=pk)
+    product_id = pk
+    # Perform the logic to decrease the quantity for the given product
+    # Update the cart in the database
 
-    # Get the customer's cart
-    cart, created = Cart.objects.get_or_create(customer=request.user.customer)
+    # After updating the cart, fetch the updated cart data
+    updated_cart_items = CartItem.objects.filter(cart__customer=request.user.customer)
+    total_price = calculate_total_price(updated_cart_items)
 
-    # Check if the product is in the cart
-    try:
-        cart_item = CartItem.objects.get(cart=cart, product=product)
-        if cart_item.quantity > 1:
-            cart_item.quantity -= 1
-            cart_item.save()
-        else:
-            cart_item.delete()
+    # Return updated cart data in JSON format
+    data = {
+        'cart_table': render_to_string('customer/cart_table.html', {'cart_items': updated_cart_items}),
+        'total_price': total_price,
+    }
+    return JsonResponse(data)
 
-        # Update the cart totals
-        cart.update_totals()
-
-        # Inform the user that the quantity has been decreased
-        messages.info(request, f'Quantity of {product.name} decreased in the cart.')
-    except CartItem.DoesNotExist:
-        pass
-
-    return HttpResponseRedirect(reverse('customer:cart'))
-
+def calculate_total_price(cart_items):
+    # Calculate the total price based on the updated quantities of items
+    total_price = sum(item.quantity * item.product.price for item in cart_items)
+    return total_price
 
 
 
@@ -360,49 +353,44 @@ def proceed_purchase_view(request):
         'user': user,
         'customer': customer,
         'customer_address': customer_address,
+        'vat_rate':vat_rate,
     })
 
 
+# Updated online_payment_view
 @login_required
 def online_payment_view(request):
-     # Your PayMongo API key (replace with your actual API key)
-    api_key = "Basic c2tfdGVzdF85b3ltdlhraDhncnBwWmpHQnhYeFpjVFU6QEZsZWVreWh1Yb2tl1jkjd"
+    # Your PayMongo API key (replace with your actual API key)
+    api_key = "Basic c2tfdGVzdF85b3ltdlhraDhncnBwWmpHQnhYeFpjVFU6QEZsZWVreWh1Yl8yMDIzIQ=="
 
     user = User.objects.get(id=request.user.id)
     customer = get_object_or_404(Customer, user=user)
     customer_address = get_object_or_404(Address, customer=customer)
-    cart = get_object_or_404(Cart, customer=customer)
-    
+    cart = Cart.objects.get(customer=customer)  # Use Cart model
+
     # Check if there are products in the cart
-    product_ids = request.COOKIES.get('product_ids', '')
-    product_id_in_cart = product_ids.split('|') if product_ids else []
-    product_count_in_cart = len(set(product_id_in_cart))
+    cart_items = CartItem.objects.filter(cart=cart)
+    product_count_in_cart = len(cart_items)
     product_in_cart = product_count_in_cart > 0
-    
-    # Fetch product details from the database based on the IDs in the cookie
-    products = Product.objects.filter(id__in=product_id_in_cart)
 
     # Calculate the total price and quantity based on products in the cart
-    total = Decimal('0')
-    quantity = 0  # Initialize quantity
-    vat_rate = Decimal('0.12')  # 12% VAT rate
-
-    for product in products:
-        total += product.price
-        quantity += 1  # Increment quantity for each product in the cart
+    total = cart.total_price  # Use the total price from the Cart model
+    quantity = cart.total_quantity  # Use the total quantity from the Cart model
 
     # Calculate VAT and total with VAT
+    vat_rate = Decimal('0.12')
     vat = total * vat_rate
     with_vat = total + vat
 
     # Determine shipping fee based on the region
     f_region = customer_address.region
     shipping_fee = 0
+    total_price = 0
 
     regions_three = ["National Capital Region (NCR)", "Region I (Ilocos Region)", "Region II (Cagayan Valley)",
                      "Region III (Central Luzon)", "Region IV-A (CALABARZON)", "Region V (Bicol Region)"]
     regions_four = ["Region VI (Western Visayas)", "Region VII (Central Visayas)", "Region VIII (Eastern Visayas)"]
-    regions_five = ["Region IX (Zamboanga Peninzula)", "Region X (Northern Mindanao)",
+    regions_five = ["Region IX (Zamboanga Peninsula)", "Region X (Northern Mindanao)",
                     "Region XI (Davao Region)", "Region XII (SOCCSKSARGEN)", "Region XIII (Caraga)",
                     "Cordillera Administrative Region (CAR)", "Autonomous Region in Muslim Mindanao (ARMM)"]
 
@@ -412,16 +400,19 @@ def online_payment_view(request):
         shipping_fee = Decimal('400')
     elif f_region in regions_five:
         shipping_fee = Decimal('500.00')
-        
+
+    total_price = with_vat + shipping_fee
+
     # Prepare line items for all products in the cart
     line_items = []
-    for product in products:
+    for cart_item in cart_items:
+        product = cart_item.product
         line_item = {
             "currency": "PHP",
             "amount": int((product.price * Decimal('100')).to_integral_value()),  # Convert price to cents
             "description": product.description,
             "name": product.name,
-            "quantity": 1  # Each product is listed separately with quantity 1
+            "quantity": cart_item.quantity
         }
         line_items.append(line_item)
 
@@ -461,14 +452,14 @@ def online_payment_view(request):
                         "line1": customer_address.barangay
                     },
                     "name": fname,
-                    "email": customer.email,
+                    "email": customer.email,  # Use the email from the customer
                     "phone": customer.phone_number
                 },
                 "send_email_receipt": False,  # Set to False
                 "show_description": True,
                 "show_line_items": True,
-                "cancel_url": request.build_absolute_uri('/proceed-purchase/'), # Cancel URL
-                "success_url": request.build_absolute_uri('/customer/home'), #Add Success URL
+                "cancel_url": request.build_absolute_uri('/customer/proceed-purchase/'),  # Cancel URL
+                "success_url": request.build_absolute_uri('/customer/home'),  # Add Success URL
                 "description": "Order Description",
                 "line_items": line_items,
                 "payment_method_types": ["gcash", "grab_pay", "paymaya"]  # Add payment method types
@@ -482,14 +473,12 @@ def online_payment_view(request):
         "Authorization": api_key
     }
 
-
     # API endpoint for payment creation
     url = "https://api.paymongo.com/v1/checkout_sessions"
     try:
         # Make a POST request to create the payment session
         response = requests.post(url, json=payload, headers=headers)
-        
-        
+
         # Check if the request was successful
         if response.status_code == 200:
             # Payment session created successfully, retrieve the session URL
@@ -500,23 +489,20 @@ def online_payment_view(request):
             order = Order.objects.create(
                 status="Pending",
                 customer=customer,
-                email=user.email,
-                address=customer_address,
-                mobile_number=customer.phone_number,
-                cart=cart,
-                payment_status="Pending"
+                shipping_address=customer_address,
+                payment_method="Online",  # Assuming online payment
+                total_price=total_price,  # Use the calculated total price
+                order_date=timezone.now(),  # Include the current date and time
             )
-        
-            # Create OrderProduct instances for each product in the cart
-            for cart_product in cart.cartproduct_set.all():
-                Order.objects.create(order=order, product=cart_product.product, quantity=cart_product.quantity)
+                        # Create OrderProduct instances for each product in the cart
+            for cart_item in cart_items:
+                CartItem.objects.create(cart=cart, product=cart_item.product, quantity=cart_item.quantity)
+            # Clear the cart after a successful payment
+            cart_items.delete()
 
-
-
-            #response.delete_cookie('product_ids')
             return response
             # Redirect the user to the checkout URL
-            
+
         else:
             # Payment session creation failed
             error_message = response.json().get("errors", "Payment session creation failed")
@@ -528,33 +514,32 @@ def online_payment_view(request):
 
     return JsonResponse({"error": "Invalid request method"}, status=400)
 
+
+
 def my_order_view(request):
-    if request.user.is_authenticated:
-        try:
-            # Retrieve the customer object
-            customer = Customer.objects.get(user=request.user)
-            orders = Order.objects.filter(customer=customer)
-            order_products = CartItem.objects.filter(order__in=orders)  # Get all order products for the customer's orders
+    user = request.user
+    orders = Order.objects.filter(customer__user=user).order_by('-order_date')
 
-            order_bundles = {}  # Dictionary to group products by order
-           
-            
-            for order_product in order_products:
-                order = order_product.order
-                product = order_product.product
+    order_details = []
 
-                if order.id not in order_bundles:
-                    order_bundles[order.id] = {
-                        'order': order,
-                        'products': [],
-                    }
+    for order in orders:
+        products_with_images = []
+        order_items = OrderItem.objects.filter(order=order)
+        for order_item in order_items:
+            product = order_item.product
+            products_with_images.append({
+                'product': product,
+                'quantity': order_item.quantity,
+                'price': order_item.item_total,
+                'image': product.image.url  # Assuming you have an 'image' field in your Product model
+            })
 
-                order_bundles[order.id]['products'].append(product)
-                print(order_bundles)
-            return render(request, 'customer/my-order.html', {'order_bundles': order_bundles.values(), 'customer': customer})
+        order_details.append({
+            'order_number': order.order_number,
+            'order_date': order.order_date,
+            'total_price': order.total_price,
+            'status': order.status,
+            'products_with_images': products_with_images
+        })
 
-        except Customer.DoesNotExist:
-            return HttpResponse("Customer not found")
-
-    else:
-        return HttpResponse("Please log in to view your orders")
+    return render(request, 'customer/my-order.html', {'orders': order_details})

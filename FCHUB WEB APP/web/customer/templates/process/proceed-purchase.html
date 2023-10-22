@@ -241,11 +241,11 @@
                         {% endfor %}
                     </tbody>
                 </table>
-                <p class="order-summary-total">VAT: 12% | ₱{{ vat }}</p>
+                <p class="order-summary-total">VAT: (12%) {{vat_rate}} | ₱{{ vat }}</p>
+                <p class="order-summary-total">With Vat: ₱{{ with_vat}}</p>
                 <p class="order-summary-total">Shipping Fee ({{ customer_address.region }}): ₱{{ shipping_fee }}</p>
-                <p class="order-summary-total">Total Price: ₱{{ total_price }}</p>
-                <p class="order-summary-total">With VAT: ₱{{ with_vat }}0</p>
-                <p class="order-summary-total">Total Price with Shipping: ₱{{ total_price }}0</p>
+                <hr>
+                <p class="order-summary-total">Total Price with Shipping: ₱{{ total_price }}</p>
             </div>
 
             <div class="customer-info">
