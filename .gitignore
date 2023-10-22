@@ -36,12 +36,6 @@ __pycache/
 # Ignore Node.js modules directory if using JavaScript or Node.js
 node_modules/
 
-# Ignore generated static files
-staticfiles/
-
-# Ignore generated media files
-media/
-
 # Ignore a local settings file that may contain sensitive information
 local_settings.py
 
