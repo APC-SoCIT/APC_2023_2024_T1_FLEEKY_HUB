@@ -14,9 +14,6 @@ __pycache/
 # Ignore log files
 *.log
 
-# Ignore data import/export files (e.g., JSON or XML)
-*.json
-*.xml
 
 # Ignore environment variable configuration files (e.g., .env files)
 *.env
