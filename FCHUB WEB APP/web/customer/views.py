@@ -6,7 +6,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.forms import UserCreationForm
 import requests
 from .forms import CustomerEditForm, SignupForm, AddressEditForm ,CartForm, CartItemForm, OrderForm, PaymentForm, UserEditForm
-from .models import Cart, CartItem, Customer, Order, Payment
+from .models import Cart, CartItem, Customer, Order, OrderItem, Payment
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.views import LoginView
 from django.utils.translation import gettext as _
@@ -516,30 +516,12 @@ def online_payment_view(request):
 
 
 
+
+
+@login_required
 def my_order_view(request):
     user = request.user
     orders = Order.objects.filter(customer__user=user).order_by('-order_date')
 
-    order_details = []
-
-    for order in orders:
-        products_with_images = []
-        order_items = OrderItem.objects.filter(order=order)
-        for order_item in order_items:
-            product = order_item.product
-            products_with_images.append({
-                'product': product,
-                'quantity': order_item.quantity,
-                'price': order_item.item_total,
-                'image': product.image.url  # Assuming you have an 'image' field in your Product model
-            })
-
-        order_details.append({
-            'order_number': order.order_number,
-            'order_date': order.order_date,
-            'total_price': order.total_price,
-            'status': order.status,
-            'products_with_images': products_with_images
-        })
-
-    return render(request, 'customer/my-order.html', {'orders': order_details})
+    # Render a template and pass the orders as context
+    return render(request, 'customer/my-order.html', {'orders': orders})

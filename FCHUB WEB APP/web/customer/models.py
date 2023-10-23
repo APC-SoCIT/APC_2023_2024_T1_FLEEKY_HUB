@@ -149,12 +149,16 @@ class OrderItem(models.Model):
     item_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     order_number = models.CharField(max_length=15)  # Add this field
 
+    def save(self, *args, **kwargs):
+        self.calculate_item_total()  # Calculate item total before saving
+        super().save(*args, **kwargs)
+
     def calculate_item_total(self):
         self.item_total = self.quantity * self.product.price
-        self.save()
 
     def __str__(self):
         return f"{self.product.name} in Order {self.order_number}"
+
 
 
 class Payment(models.Model):

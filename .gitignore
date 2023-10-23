@@ -44,3 +44,5 @@ local_settings.py
 
 # Ignore compiled Python files
 *.py[cod]
+
+
