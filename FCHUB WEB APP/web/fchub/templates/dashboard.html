@@ -1,0 +1,16 @@
+{% extends 'navbar/dashboard-navbar.html' %}
+{% load static %}
+
+{% block content %}
+    <div class="container">
+        <div class="dashboard-header">
+        </div>
+        <div class="user-info">
+            <div class="user-details">
+                <h2 class="username text-primary">Active User: {{ request.user }}</h2>
+                <h3 class="employee-name">Employee Name: {{ active.first_name }} {{ active.last_name }}</h3>
+            </div>
+        </div>
+        <hr>
+    </div>
+{% endblock content %}
