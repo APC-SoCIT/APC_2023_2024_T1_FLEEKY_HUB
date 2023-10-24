@@ -32,13 +32,10 @@ class FleekyAdmin(models.Model):
     def generate_custom_id(self):
         # Get the maximum ID for existing FleekyAdmin instances
         max_id = FleekyAdmin.objects.aggregate(Max('id'))['id__max']
-
         # Generate a unique custom ID by incrementing the max ID
         next_id = (max_id or 0) + 1
-
         # Convert the next ID to a string and ensure it has a consistent length
         next_id_str = str(next_id).zfill(4)
-
         # Other parts of the custom ID generation logic (if needed)
         username_part = self.user.username[:2].upper()
         first_name_part = self.first_name[:3].upper()

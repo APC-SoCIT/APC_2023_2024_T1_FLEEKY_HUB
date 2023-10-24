@@ -13,17 +13,15 @@
     <h1 class="mb-4">My Orders</h1>
 
     <div class="order-history">
-      <h2 class="order-history-heading">Your Order History</h2>
-
       <ul class="order-list">
         {% for order in orders %}
           <li class="order-item">
             <div class="order-details">
-              <span class="order-label">Order Number:</span> {{ order.order_number }}<br>
-              <span class="order-label">Order Date:</span> {{ order.order_date }}<br>
-              <span class="order-label">Total Price:</span> ₱{{ order.total_price }}<br>
-              <span class="order-label">Status:</span> {{ order.status }}<br>
-              <!-- Add more order details as needed -->
+              <p class="order-label">Order Number: {{ order.order_number }}</p>
+              <p class="order-label">Order Date: {{ order.order_date }}</p>
+              <p class="order-label">Total Price: ₱{{ order.total_price }}</p>
+              <p class="order-label">Status: {{ order.status }}</p>
+              <button class="download-button">Download Invoice</button>
             </div>
           </li>
         {% empty %}
@@ -34,34 +32,43 @@
   </div>
 
   <style>
-    .order-history-heading {
-      font-size: 24px;
-      font-weight: bold;
-      margin-bottom: 20px;
-      color: #333; /* Text color */
+    .order-list {
+      list-style-type: none;
+      padding: 0;
     }
 
     .order-item {
       margin-bottom: 20px;
       padding: 20px;
-      border: 1px solid #e0e0e0;
+      border: 1px solid #ddd; /* Border color */
       border-radius: 5px;
-      background-color: #f7f7f7; /* Background color */
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Box shadow for depth */
+      background-color: #f4f4f4; /* Background color */
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
     .order-details {
       font-size: 16px;
+      margin: 10px 0;
     }
 
     .order-label {
       font-weight: bold;
-      color: #555; /* Label color */
+      color: #333; /* Text color */
+    }
+
+    .download-button {
+      background-color: #007BFF; /* Button background color */
+      color: #fff; /* Button text color */
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 10px;
     }
 
     .no-orders {
       font-size: 18px;
-      color: #888;
+      color: #888; /* Text color for the "No orders" message */
     }
   </style>
 {% endblock %}
