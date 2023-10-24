@@ -25,6 +25,7 @@ urlpatterns = [
     path('',views.index),
     path('guest/',include('guest.urls')),
     path('customer/',include('customer.urls')),
+    path('fchub/',include('fchub.urls')),
     path('admin/', admin.site.urls),
 
     

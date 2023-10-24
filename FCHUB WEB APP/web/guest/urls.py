@@ -4,6 +4,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.conf import settings
 from django.conf.urls.static import static
+app_name = "guest"
 urlpatterns = [
     path('', views.index, name='index'),
     #path('guest/', views.guest, name='guest'),

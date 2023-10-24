@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils.dates import MONTHS
-
+from django.db.models import Max
 
 class FleekyAdmin(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -9,9 +9,42 @@ class FleekyAdmin(models.Model):
     last_name = models.CharField('Last Name', max_length=50)
     login_time = models.DateTimeField(null=True, blank=True)
     logout_time = models.DateTimeField(null=True, blank=True)
-    
+    custom_id = models.CharField(max_length=20, unique=True, blank=True, null=True)  # Custom ID field
+    is_customer = models.BooleanField(default=False)
+    is_admin = models.BooleanField(default=True)
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
+
+    def save(self, *args, **kwargs):
+        # Ensure is_customer is always False
+        self.user.is_customer = False
+        # Ensure is_superuser and is_staff are always True
+        self.user.is_superuser = True
+        self.user.is_staff = True
+
+        # Generate a custom ID if it doesn't exist
+        if not self.custom_id:
+            self.custom_id = self.generate_custom_id()
+        
+        self.user.save()
+        super().save(*args, **kwargs)
+
+    def generate_custom_id(self):
+        # Get the maximum ID for existing FleekyAdmin instances
+        max_id = FleekyAdmin.objects.aggregate(Max('id'))['id__max']
+
+        # Generate a unique custom ID by incrementing the max ID
+        next_id = (max_id or 0) + 1
+
+        # Convert the next ID to a string and ensure it has a consistent length
+        next_id_str = str(next_id).zfill(4)
+
+        # Other parts of the custom ID generation logic (if needed)
+        username_part = self.user.username[:2].upper()
+        first_name_part = self.first_name[:3].upper()
+        last_name_part = self.last_name[:2].upper()
+
+        return f"{username_part}{first_name_part}{last_name_part}{next_id_str}"
 
     class Meta:
         verbose_name = "Admin"

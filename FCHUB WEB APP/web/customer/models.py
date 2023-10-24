@@ -7,27 +7,29 @@ from django.db import models
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
 from fchub.models import Product
-
+from django.db.models import Max
 
 class Customer(models.Model):
     GENDER_CHOICES = (
         ('Male', 'Male'),
         ('Female', 'Female')
     )
-    
+
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     first_name = models.CharField(max_length=50, verbose_name='First Name')
     last_name = models.CharField(max_length=50, verbose_name='Last Name')
     email = models.EmailField()
     phone_number = models.CharField(max_length=30)
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
-    address = models.OneToOneField('Address',on_delete=models.SET_NULL, null=True, blank=True, related_name='customer_addresses')
+    address = models.OneToOneField('Address', on_delete=models.SET_NULL, null=True, blank=True, related_name='customer_addresses')
     profile_pic = models.ImageField(
         upload_to='customers/static/customer_profile_pic',
         null=True,
         default='customers/profile_pic/customer_profile_pic/akbay.png'
     )
     custom_id = models.CharField(max_length=20, unique=True, blank=True, null=True)  # Increased max_length
+    is_customer = models.BooleanField(default=True)
+    is_admin = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
@@ -35,24 +37,33 @@ class Customer(models.Model):
     def save(self, *args, **kwargs):
         if not self.custom_id:
             self.custom_id = self.generate_custom_id()
+        
+        if not self.user.is_staff and not self.user.is_superuser:
+            self.user.is_customer = True
+            self.user.save()
+        
         super().save(*args, **kwargs)
 
     def generate_custom_id(self):
-        # Generate the custom ID based on your criteria and convert it to uppercase
+        # Get the maximum ID for existing customers
+        max_id = Customer.objects.aggregate(Max('id'))['id__max']
+        
+        # Generate a unique custom ID by incrementing the max ID
+        next_id = (max_id or 0) + 1
+
+        # Convert the next ID to a string and ensure it has a consistent length
+        next_id_str = str(next_id).zfill(4)
+
+        # Other parts of the custom ID generation as before
         username_part = self.user.username[:2].upper()
         first_name_part = self.first_name[:3].upper()
         last_name_part = self.last_name[:2].upper()
-        gender_part = str(self.gender)[:0].upper()
-        id_part = str(self.id)
-        return f"{username_part}{first_name_part}{last_name_part}{gender_part}{id_part}"
-    
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)  # Save the object first so it gets an id
-        self.custom_id = self.generate_custom_id()
-        super().save(update_fields=['custom_id'])  # Save again to update the custom_id   
-        
-        class Meta:
-            verbose_name = "Customer"
+        gender_part = self.gender[:1].upper()
+
+        return f"{username_part}{first_name_part}{last_name_part}{gender_part}{next_id_str}"
+
+    class Meta:
+        verbose_name = "Customer"
 
 
 class Address(models.Model):

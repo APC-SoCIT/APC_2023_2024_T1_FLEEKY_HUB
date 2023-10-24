@@ -5,6 +5,8 @@ from django.contrib.auth import login
 from django.shortcuts import render, redirect
 from django.contrib.auth.forms import UserCreationForm
 import requests
+
+from fchub.models import FleekyAdmin
 from .forms import CustomerEditForm, SignupForm, AddressEditForm ,CartForm, CartItemForm, OrderForm, PaymentForm, UserEditForm
 from .models import Cart, CartItem, Customer, Order, OrderItem, Payment
 from django.contrib.auth.forms import AuthenticationForm
@@ -32,6 +34,8 @@ from django.contrib.auth.models import User
 from datetime import datetime  # Import datetime module
 from django.http import JsonResponse
 from django.utils import timezone
+from django.core.cache import cache
+from django.contrib.auth import authenticate, login
 # Create your views here.
 
 def signup(request):
@@ -83,8 +87,6 @@ def signup(request):
     return render(request, 'registration/signup.html', {'form': form})
 
 
-
-
 class CustomAuthenticationForm(AuthenticationForm):
     error_messages = {
         'invalid_login': _(
@@ -94,17 +96,40 @@ class CustomAuthenticationForm(AuthenticationForm):
         'inactive': _("This account is inactive."),
     }
 
-class CustomLoginView(LoginView):
-    authentication_form = CustomAuthenticationForm
-    template_name = 'registration/login.html'
-    
-    def form_invalid(self, form):
-        messages.error(self.request, _('Invalid username or password'))  # Add a custom error message
-        return super().form_invalid(form)
 
+class CustomLoginView(LoginView):
+    template_name = 'registration/login.html'
+
+    def form_valid(self, form):
+        username = form.cleaned_data['username']
+        password = form.cleaned_data['password']
+        user = authenticate(username=username, password=password)
+
+        if user is not None:
+            login(self.request, user)
+
+            try:
+                customer = user.customer  # Access the related Customer object
+                if customer.is_customer:
+                    return redirect('customer:home')
+            except Customer.DoesNotExist:
+                pass
+
+            try:
+                admin = user.fleekyadmin  # Access the related FleekyAdmin object
+                if admin.is_admin:
+                    return redirect('fchub:dashboard')
+            except FleekyAdmin.DoesNotExist:
+                pass
+
+        else:
+            messages.error(self.request, 'Invalid credentials')
+            return super().form_invalid(form)
+
+    
 def customer_logout(request):
     logout(request)
-    # You can add a custom message or additional logic here if needed.
+    cache.clear()  # Clear the cache for all users
     return redirect('customer:login')  # Redirect to the login page after logout
 
 @login_required
@@ -112,6 +137,7 @@ def customer_home_view(request):
     customer = request.user.customer
     products = Product.objects.all()
     return render(request, 'customer/home.html', {'customer': customer, 'Products': products})
+
 
 def access_denied(request):
     if isinstance(request.user, AnonymousUser):

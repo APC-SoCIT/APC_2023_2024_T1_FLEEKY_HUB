@@ -20,10 +20,10 @@
     <!-- Page Navbar -->
     <nav class="custom-navbar" data-spy="affix" data-offset-top="20">
         <div class="container">
-            <a class="logo" href="{% url 'index' %}">Fleeky Curtains</a>
+            <a class="logo" href="{% url 'guest:index' %}">Fleeky Curtains</a>
             <ul class="nav">
                 <li class="item">
-                    <a class="btn btn-primary rounded" href="{% url 'index' %}">Home</a>
+                    <a class="btn btn-primary rounded" href="{% url 'guest:index' %}">Home</a>
                 </li>
                 <li class="item">
                     <div class="dropdown d-inline-block">
@@ -38,7 +38,7 @@
                     </div>
                 </li>
                 <li class="item">
-                    <a class="btn btn-primary rounded"  href="{%url 'products'%}">Products</a>
+                    <a class="btn btn-primary rounded"  href="{%url 'guest:products'%}">Products</a>
                 </li>
             </ul>
             <a href="javascript:void(0)" id="nav-toggle" class="hamburger hamburger--elastic">
