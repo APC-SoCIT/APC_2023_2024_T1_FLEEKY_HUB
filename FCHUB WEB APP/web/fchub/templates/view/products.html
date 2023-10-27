@@ -1,0 +1,82 @@
+{% extends 'navbar/dashboard-navbar.html' %}
+{% load static %}
+{% block content %}
+
+
+<head>
+ 
+  <style media="screen">
+    .float{
+      position:fixed;
+      width:70px;
+      height:70px;
+      bottom:60px;
+      right:60px;
+      background-color:#212529;
+      color:#FFF;
+      border-radius:50px;
+      text-align:center;
+      box-shadow: 5px 5px 5px #505050;
+    }
+
+.my-float{
+	margin-top:22px;
+}
+.fa{
+  padding: 0em 0.5em;
+}
+  </style>
+</head>
+
+
+<div class="container">
+    <div class="panel panel-primary">
+      <div class="panel-heading text-center">
+        <h2 class="text-dark">Total Products</h2>
+      </div>
+      <table class="table table-hover table-bordered" id="dev-table">
+        <thead>
+          <tr>
+            <th>Product ID</th>
+            <th>Name</th>
+            <th>Image</th>
+            <th>Price</th>
+            <th>Fabric</th>
+            <th>Set Type</th>
+            <th>Color</th>
+            <th>Description</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        {% for product in products %}
+        <tr>
+          <td>{{ product.custom_id }}</td>
+          <td>{{ product.name }}</td>
+          <td>
+            <img src="{{ product.product_image.url }}" alt="Product" height="70px" width="70px" />
+          </td>
+          <td>{{ product.price }}</td>
+          <td>{{ product.category.fabric }}</td>
+          <td>{{ product.category.setType }}</td>
+          <td>{{ product.color }}</td>
+          <td>{{ product.description }}</td>
+          <td>
+            <div class="container" margin="40px">
+              <a class="btn btn-primary rounded btn-xs" href="1">Edit</a>
+              <a class="btn btn-danger rounded btn-xs" href="2">Delete</a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="text-center">No Products!</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+<!-- add product floating button -->
+<a href="/admin-add-products" class="float">
+<i class="fa fa-plus my-float"></i>
+</a>
+{% endblock content %}

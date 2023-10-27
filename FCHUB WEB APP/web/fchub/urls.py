@@ -11,6 +11,11 @@ urlpatterns = [
     path('dashboard/', views.dashboard, name='dashboard'),
     path('logout/', views.fchub_logout, name='logout'),
 
+
+    path('customers/', views.view_customer, name='customers'),
+    path('orders/', views.view_order, name='orders'),
+    path('products/', views.view_product, name='products'),
+    path('materials/', views.view_materials, name='materials'),
     # Add more URLs for other admin-related views if needed
 ]
 if settings.DEBUG:

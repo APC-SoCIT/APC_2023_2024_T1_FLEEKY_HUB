@@ -1,0 +1,46 @@
+{% extends 'navbar/dashboard-navbar.html' %}
+{% load static %}
+{% block content %}
+<div class="container">
+  <div class="panel panel-primary">
+    <div class="panel-heading text-center">
+      <h2 class="text-dark">Materials</h2>
+    </div>
+    <table class="table table-hover table-bordered" id="dev-table">
+      <thead>
+        <tr>
+          <th>Material ID</th>
+          <th>Name</th>
+          <th>Unit</th>
+          <th>Price</th>
+          <th>Description</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      {% for material in materials %}
+      <tr>
+        <td>{{ material.custom_id }}</td>
+        <td>{{ material.name }}</td>
+        <td>{{ material.unit }}</td>
+        <td>{{ material.price }}</td>
+        <td>{{ material.description }}</td>
+        <td>
+          <div class="container" margin="40px">
+            <a class="btn btn-primary rounded btn-xs" href="{% url 'update-materials' material.id %}">Edit</a>
+            <a class="btn btn-danger rounded btn-xs" href="{% url 'delete-materials' material.id %}">Delete</a>
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="6" class="text-center">No Materials!</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+<!-- Add material floating button -->
+<a href="/admin-add-materials" class="float">
+  <i class="fa fa-plus my-float"></i>
+</a>
+{% endblock content %}
