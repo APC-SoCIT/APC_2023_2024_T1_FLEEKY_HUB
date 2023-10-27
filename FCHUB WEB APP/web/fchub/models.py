@@ -120,39 +120,56 @@ class Material(models.Model):
     def __str__(self):
         return self.name
     
-class analytics(models.Model):
-    
+class Tracker(models.Model):
     PAYMENT_CHOICES = (
-        ('GCASH','GCASH'),
-        ('CASH ON DELIVERY','CASH ON DELIVERY'),
-        ('LBC','LBC'),
-        ('OTHERS','OTHERS'),
+        ('GCASH', 'GCASH'),
+        ('CASH ON DELIVERY', 'CASH ON DELIVERY'),
+        ('LBC', 'LBC'),
+        ('OTHERS', 'OTHERS'),
     )
+
     PRODUCT_TAG_CHOICES = (
         (1, 'Blockout'),
         (2, '5-in-1 Katrina'),
         (3, '3-in-1 Katrina'),
         (4, 'Tieback Holder'),
     )
+
     FABRIC_CHOICES = (
-        ('Katrina','Katrina'),
-        ('Blockout','Blockout'),
-        ('Sheer','Sheer'),
-        ('None','None'),
+        ('Katrina', 'Katrina'),
+        ('Blockout', 'Blockout'),
+        ('Sheer', 'Sheer'),
+        ('None', 'None'),
     )
-    
+
     SET_CHOICES = (
-        ('5-in-1','5-in-1'),
-        ('3-in-1','3-in-1'),
-        ('Single','Single'),
-        ('None','None'),
+        ('5-in-1', '5-in-1'),
+        ('3-in-1', '3-in-1'),
+        ('Single', 'Single'),
+        ('None', 'None'),
     )
-    fabric_type = models.CharField(max_length=250, null= True,choices=FABRIC_CHOICES)
-    payment = models.CharField(max_length=250,null=True,choices=PAYMENT_CHOICES)
-    price  = models.PositiveIntegerField(null=True)
+
+    MONTHS = (
+        (1, 'January'),
+        (2, 'February'),
+        (3, 'March'),
+        (4, 'April'),
+        (5, 'May'),
+        (6, 'June'),
+        (7, 'July'),
+        (8, 'August'),
+        (9, 'September'),
+        (10, 'October'),
+        (11, 'November'),
+        (12, 'December'),
+    )
+
+    fabric_type = models.CharField(max_length=250, null=True, choices=FABRIC_CHOICES)
+    payment = models.CharField(max_length=250, null=True, choices=PAYMENT_CHOICES)
+    price = models.PositiveIntegerField(null=True)
     color = models.CharField(max_length=250, null=True)
     product_tag = models.SmallIntegerField(choices=PRODUCT_TAG_CHOICES)
     set_tag = models.CharField(max_length=250, choices=SET_CHOICES, null=True)
-    month_of_purhase = models.PositiveSmallIntegerField(null=True,choices=MONTHS.items())
+    month_of_purchase = models.PositiveSmallIntegerField(null=True, choices=MONTHS)
     qty = models.PositiveIntegerField(null=True)
     count = models.PositiveIntegerField(null=True)

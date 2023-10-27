@@ -1,0 +1,31 @@
+{% extends 'navbar/dashboard-navbar.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="panel panel-danger">
+        <div class="panel-heading text-center">
+            <h2 class="text-dark">Confirm Deletion</h2>
+        </div>
+        <div class="panel-body">
+            <p>Are you sure you want to delete the following material?</p>
+            <p><strong>Material ID:</strong> {{ material.custom_id }}</p>
+            <p><strong>Name:</strong> {{ material.name }}</p>
+            <p><strong>Unit:</strong> {{ material.unit }}</p>
+            <p><strong>Price:</strong> {{ material.price }}</p>
+            <p><strong>Description:</strong> {{ material.description }}</p>
+
+            <form method="post" action="{% url 'fchub:delete-material' material.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">Delete</button>
+                <a class="btn btn-secondary" href="{% url 'fchub:materials' %}">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+This template displays the material details and provides an option to confirm the deletion. It includes a "Delete" button to submit the form and delete the material or a "Cancel" button to go back to the materials list. Make sure to customize the template to match your application's styling and layout.
+
+
+
+
+

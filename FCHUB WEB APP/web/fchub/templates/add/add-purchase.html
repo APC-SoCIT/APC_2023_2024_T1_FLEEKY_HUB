@@ -1,0 +1,15 @@
+{% extends 'navbar/dashboard-navbar.html' %}
+{% block content %}
+<div class="container">
+    <div class="panel panel-primary">
+        <div class="panel-heading text-center">
+            <h2 class="text-dark">Add Purchase</h2>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn btn-primary">Add Purchase</button>
+        </form>
+    </div>
+</div>
+{% endblock content %}

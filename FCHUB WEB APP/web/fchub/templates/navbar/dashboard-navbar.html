@@ -15,6 +15,7 @@
     <!-- Bootstrap + Steller  -->
     <link rel="stylesheet" type="text/css" href="{% static 'css/meyawo.css' %}">
     <!-- CSS Bootstrap -->
+    <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
 </head>
 <body data-spy="scroll" data-target=".navbar" data-offset="40" id="home">
     <!-- Page Navbar -->
@@ -40,7 +41,7 @@
                             <a class="nav-link" href="{% url 'fchub:materials'  %}">Manage Materials</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="1">Manage Purchase Data</a>
+                            <a class="nav-link" href="{% url 'fchub:track-purchase' %}">Manage Purchase Data</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'fchub:manage-business'%}">Manage Business</a>

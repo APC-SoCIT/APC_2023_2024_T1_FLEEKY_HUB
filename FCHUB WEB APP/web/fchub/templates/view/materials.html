@@ -26,8 +26,9 @@
         <td>{{ material.description }}</td>
         <td>
           <div class="container" margin="40px">
-            <a class="btn btn-primary rounded btn-xs" href="{% url 'update-materials' material.id %}">Edit</a>
-            <a class="btn btn-danger rounded btn-xs" href="{% url 'delete-materials' material.id %}">Delete</a>
+            <a class="btn btn-primary rounded btn-xs" href="{% url 'fchub:edit-material' material.id %}">Edit</a>
+
+            <a class="btn btn-danger rounded btn-xs" href="{% url 'fchub:delete-material' material.id %}">Delete</a>                     
           </div>
         </td>
       </tr>
@@ -39,8 +40,32 @@
     </table>
   </div>
 </div>
-<!-- Add material floating button -->
-<a href="/admin-add-materials" class="float">
-  <i class="fa fa-plus my-float"></i>
-</a>
+<!-- add materials floating button -->
+<div class="float-button">
+  <a href="{% url 'fchub:add-material' %}" class="btn btn-primary btn-float">
+      <i class="fa-solid fa-plus"></i> 
+  </a>
+</div>
+
+<style>
+  .float-button {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+  }
+
+  .btn-float {
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      font-size: 24px;
+      text-align: center;
+      padding: 10px;
+      background: #008000;
+      color: #fff;
+      text-decoration: none;
+      display: inline-block;
+  }
+</style>
+
 {% endblock content %}
