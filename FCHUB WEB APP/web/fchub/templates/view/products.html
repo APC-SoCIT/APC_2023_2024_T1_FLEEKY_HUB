@@ -62,8 +62,8 @@
           <td>{{ product.description }}</td>
           <td>
             <div class="container" margin="40px">
-              <a class="btn btn-primary rounded btn-xs" href="1">Edit</a>
-              <a class="btn btn-danger rounded btn-xs" href="2">Delete</a>
+              <a class="btn btn-primary rounded btn-xs" href="{% url 'fchub:edit-product' product.id %}">Edit</a>
+              <a class="btn btn-danger rounded btn-xs" href="{% url 'fchub:delete-product' product.id %}">Delete</a>
             </div>
           </td>
         </tr>
@@ -76,7 +76,7 @@
     </div>
   </div>
 <!-- add product floating button -->
-<a href="/admin-add-products" class="float">
+<a href="{% url 'fchub:add-products'%}" class="float">
 <i class="fa fa-plus my-float"></i>
 </a>
 {% endblock content %}

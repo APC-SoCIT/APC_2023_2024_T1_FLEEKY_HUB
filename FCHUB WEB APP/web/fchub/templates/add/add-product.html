@@ -1,0 +1,15 @@
+{% extends 'navbar/dashboard-navbar.html' %}
+
+{% block content %}
+<div class="container">
+    <h2>Add Product</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+
+        <div class="form-group">
+            <button type="submit" class="btn btn-primary">Add Product</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

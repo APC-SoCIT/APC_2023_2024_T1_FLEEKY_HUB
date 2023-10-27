@@ -1,3 +1,5 @@
+import random
+import string
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils.dates import MONTHS
@@ -88,19 +90,23 @@ class Product(models.Model):
         return self.name
     
     #SKU
-    @property
-    def custom_product_id(self):
-        # Generate the custom product ID based on category ID, first three letters of color, and ID
-        category_id = self.category_id  # Assumes you have a category_id field in the Category model
-        color_short = self.color[:3]  # First three letters of color
-        return f"{category_id}{color_short}{self.id}"
-    
+    def __str__(self):
+        return self.name
+
+    def generate_random_custom_id(self, length=10):
+        # Generate a random custom ID with the first two letters of name, first three letters of color, and random characters
+        characters = string.ascii_letters + string.digits
+        name_prefix = self.name[:2]  # First two letters of name
+        color_prefix = self.color[:3]  # First three letters of color
+        random_suffix = ''.join(random.choice(characters) for _ in range(length - len(name_prefix) - len(color_prefix)))
+        random_custom_id = f"{name_prefix}{color_prefix}{random_suffix}"
+        return random_custom_id
+
     def save(self, *args, **kwargs):
-        # Generate and set the custom product ID before saving the object
-        self.custom_id = self.custom_product_id
+        if not self.custom_id:
+            # Generate and set a random custom product ID if it's not set before saving the object
+            self.custom_id = self.generate_random_custom_id()
         super(Product, self).save(*args, **kwargs)
-
-
 
 
 
