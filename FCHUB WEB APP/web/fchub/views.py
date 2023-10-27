@@ -4,13 +4,32 @@ from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse_lazy
 from customer.models import Customer, Order, Product, OrderItem
-from .models import Material, FleekyAdmin, Category, Tracker 
+from .models import Material, FleekyAdmin, Category, Tracker, User
 from .forms import FleekyAdminForm, MaterialForm, ProductForm, TrackerForm
 from django.contrib.auth.forms import UserCreationForm
 # Create your views here.
 def dashboard(request):
     active = request.user.fleekyadmin
-    return render(request, 'dashboard.html', {'active': active})
+    
+    # Calculate the counts
+    order_count = Order.objects.count()
+    product_count = Product.objects.count()
+    customer_count = User.objects.count()
+    
+    # Calculate the count of pending orders
+    pending_order_count = Order.objects.filter(status='Pending').count()
+
+    recent_orders = Order.objects.all().order_by('-order_date')[:5]
+
+    context = {
+        'active':active,
+        'customer_count': customer_count,
+        'product_count': product_count,
+        'order_count': order_count,
+        'pending_order_count': pending_order_count,
+        'recent_orders': recent_orders,
+    }
+    return render(request, 'dashboard.html', context)
 
 def fchub_logout(request):
     logout(request)
@@ -239,7 +258,7 @@ def add_admin(request):
             admin.user = user
             admin.save()
             
-            return redirect('fchub:list-admins')  # Redirect to the list of admins
+            return redirect('fchub:users-admins')  # Redirect to the list of admins
     else:
         user_form = UserCreationForm()
         admin_form = FleekyAdminForm()
