@@ -46,6 +46,7 @@
 
   .el-wrapper:hover {
     transform: scale(1.05);
+    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
   }
 
   .el-wrapper img {
@@ -95,6 +96,15 @@
     margin: 0 -15px;
   }
 
+  /* Filter Card */
+  .filter-card {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
   /* Responsive layout - makes the three columns stack on top of each other instead of next to each other */
   @media screen and (max-width: 600px) {
     .el-wrapper {
@@ -102,32 +112,64 @@
     }
   }
 </style>
-
-<div class="content-container"> <!-- Added a container for content -->
+<br><br>
+<div class="content-container">
   <div class="page-wrapper">
+    <div class="filter-card">
+      <form method="get" action="{% url 'guest:products' %}">
+        <div class="form-row">
+          <div class="col-md-4">
+            <label for="fabric_type">Fabric:</label>
+            <select name="fabric_type" id="fabric_type" class="form-control">
+              <option value="">All Fabrics</option>
+              {% for choice in FABRIC_CHOICES %}
+                <option value="{{ choice.0 }}">{{ choice.1 }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-md-4">
+            <label for="set_type">Set Type:</label>
+            <select name="set_type" id="set_type" class="form-control">
+              <option value="">All Set Types</option>
+              {% for choice in SET_TYPE_CHOICES %}
+                <option value="{{ choice.0 }}">{{ choice.1 }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-md-4">
+            <label for="color">Color:</label>
+            <input type="text" name="color" id="color" class="form-control" placeholder="Enter Color">
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary mt-3">Apply Filters</button>
+        <a href="{% url 'guest:products' %}" class="btn btn-secondary mt-3 ml-2">Reset Filters</a>
+      </form>
+    </div>
+
     <div class="row">
       {% if products %}
-      {% for p in products %}
-      <div class="el-wrapper">
-        <img src="{{ p.product_image.url }}" alt="{{ p.name }}">
-        <div class="product-info">
-          <div class="product-title">{{ p.name }}</div>
-          <div class="product-description">{{ p.description }}</div>
-          <div class="product-details">
-            Fabric: {{ p.fabric_type }}<br>
-            Color Type: {{ p.color_type }}<br>
-            Color: {{ p.color }}
+        {% for p in products %}
+          <div class="el-wrapper">
+            <img src="{{ p.product_image.url }}" alt="{{ p.name }}">
+            <div class="product-info">
+              <div class="product-title">{{ p.name }}</div>
+              <div class="product-description">{{ p.description }}</div>
+              <div class="product-details">
+                Fabric: {{ p.category.fabric}}<br>
+                Set Type: {{ p.category.setType }}<br>
+                Color: {{ p.color }}
+              </div>
+              <div class="product-price">₱ {{ p.price }}</div>
+            </div>
           </div>
-          <div class="product-price">₱ {{ p.price }}</div>
-        </div>
-      </div>
-      {% endfor %}
+        {% endfor %}
       {% else %}
-      <!-- Handle the case where no products are available -->
-      <p>No products available.</p>
+        <p>No products available.</p>
       {% endif %}
     </div>
   </div>
 </div>
-
-{% endblock content %}
+{% endblock %}

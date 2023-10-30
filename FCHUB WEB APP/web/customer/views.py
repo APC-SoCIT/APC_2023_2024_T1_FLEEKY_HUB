@@ -4,9 +4,10 @@ from django.contrib import messages
 from django.contrib.auth import login
 from django.shortcuts import render, redirect
 from django.contrib.auth.forms import UserCreationForm
+from matplotlib import category
 import requests
 
-from fchub.models import FleekyAdmin
+from fchub.models import Category, FleekyAdmin
 from .forms import CustomerEditForm, SignupForm, AddressEditForm ,CartForm, CartItemForm, OrderForm, PaymentForm, UserEditForm
 from .models import Cart, CartItem, Customer, Order, OrderItem, Payment
 from django.contrib.auth.forms import AuthenticationForm
@@ -135,8 +136,26 @@ def customer_logout(request):
 @login_required
 def customer_home_view(request):
     customer = request.user.customer
+    fabric_type = request.GET.get('fabric_type')
+    set_type = request.GET.get('set_type')
+    color = request.GET.get('color')
+    
+    # Query the Product model based on the filters
     products = Product.objects.all()
-    return render(request, 'customer/home.html', {'customer': customer, 'Products': products})
+    
+    if fabric_type:
+        products = products.filter(category__fabric=fabric_type)
+    if set_type:
+        products = products.filter(category__setType=set_type)
+    if color:
+        products = products.filter(color__icontains=color)  # Use 'icontains' for case-insensitive search
+    
+    fabric_choices = Category.FABRIC_CHOICES
+    set_type_choices = Category.SET_TYPE_CHOICES
+    
+    # Render the template with the filtered products and choices
+    return render(request, 'customer/home.html', {'customer':customer,'products': products, 'FABRIC_CHOICES': fabric_choices, 'SET_TYPE_CHOICES': set_type_choices})
+
 
 
 def access_denied(request):
@@ -381,6 +400,125 @@ def proceed_purchase_view(request):
         'customer_address': customer_address,
         'vat_rate':vat_rate,
     })
+
+@login_required
+@login_required
+def confirmation_cod_payment(request):
+    user = request.user
+    customer = get_object_or_404(Customer, user=user)
+    customer_address = get_object_or_404(Address, customer=customer)  # Assuming you have an Address model
+
+    # Retrieve the user's cart
+    cart, created = Cart.objects.get_or_create(customer=customer)
+    cart_items = cart.cartitem_set.all()
+
+    total = cart.total_price  # Use the total price from the Cart model
+    quantity = cart.total_quantity  # Use the total quantity from the Cart model
+    
+    print(total)
+    print(quantity)
+
+    # Calculate VAT and total with VAT
+    vat_rate = Decimal('0.12')
+    vat = total * vat_rate
+    with_vat = total + vat
+
+    # Determine the shipping fee based on the region
+    f_region = customer_address.region
+    shipping_fee = 0
+    total_price = 0
+
+    regions_three = ["National Capital Region (NCR)", "Region I (Ilocos Region)", "Region II (Cagayan Valley)",
+                     "Region III (Central Luzon)", "Region IV-A (CALABARZON)", "Region V (Bicol Region)"]
+    regions_four = ["Region VI (Western Visayas)", "Region VII (Central Visayas)", "Region VIII (Eastern Visayas)"]
+    regions_five = ["Region IX (Zamboanga Peninsula)", "Region X (Northern Mindanao)",
+                    "Region XI (Davao Region)", "Region XII (SOCCSKSARGEN)", "Region XIII (Caraga)",
+                    "Cordillera Administrative Region (CAR)", "Autonomous Region in Muslim Mindanao (ARMM)"]
+
+    if f_region in regions_three:
+        shipping_fee = Decimal('300')
+    elif f_region in regions_four:
+        shipping_fee = Decimal('400')
+    elif f_region in regions_five:
+        shipping_fee = Decimal('500.00')
+
+    total_price = with_vat + shipping_fee
+
+    # Render the template without saving the order
+    return render(request, 'process/confirmation-cod-payment.html', {
+        'shipping_fee': shipping_fee,
+        'total_price': total_price,
+        'vat': vat,
+        'with_vat': with_vat,
+        'cart_items': cart_items,
+        'total': total,
+        'quantity': quantity,  # Include quantity in the context
+        'user': user,
+        'customer': customer,
+        'customer_address': customer_address,
+        'vat_rate':vat_rate,
+    })
+
+
+@login_required
+def success_cod_payment_view(request):
+    user = request.user
+    customer = get_object_or_404(Customer, user=user)
+    customer_address = get_object_or_404(Address, customer=customer)
+
+        # Retrieve the user's cart
+    cart, created = Cart.objects.get_or_create(customer=customer)
+    cart_items = cart.cartitem_set.all()
+
+    total = cart.total_price
+    quantity = cart.total_quantity
+
+        # Calculate VAT and total with VAT
+    vat_rate = Decimal('0.12')
+    vat = total * vat_rate
+    with_vat = total + vat
+
+        # Determine the shipping fee based on the region
+    f_region = customer_address.region
+    shipping_fee = 0
+    total_price = 0
+
+    regions_three = ["National Capital Region (NCR)", "Region I (Ilocos Region)", "Region II (Cagayan Valley)",
+                         "Region III (Central Luzon)", "Region IV-A (CALABARZON)", "Region V (Bicol Region)"]
+    regions_four = ["Region VI (Western Visayas)", "Region VII (Central Visayas)", "Region VIII (Eastern Visayas)"]
+    regions_five = ["Region IX (Zamboanga Peninsula)", "Region X (Northern Mindanao)",
+                        "Region XI (Davao Region)", "Region XII (SOCCSKSARGEN)", "Region XIII (Caraga)",
+                        "Cordillera Administrative Region (CAR)", "Autonomous Region in Muslim Mindanao (ARMM)"]
+
+    if f_region in regions_three:
+        shipping_fee = Decimal('300')
+    elif f_region in regions_four:
+        shipping_fee = Decimal('400')
+    elif f_region in regions_five:
+        shipping_fee = Decimal('500.00')
+
+    total_price = with_vat + shipping_fee
+
+        # Create an order
+    order = Order.objects.create(
+        status="Pending",
+        customer=customer,
+        shipping_address=customer_address,
+        payment_method="Cash on Delivery (COD)",
+        total_price=total_price,
+        order_date=timezone.now(),
+        )
+    for cart_item in cart_items:
+            OrderItem.objects.create(
+            order=order,
+            product=cart_item.product,
+            quantity=cart_item.quantity,
+            item_total=cart_item.quantity * cart_item.product.price,
+            order_number=order.id  # You can customize this based on your order numbering logic
+            )
+
+    cart_items.delete()
+    return render(request, 'process/success-cod-payment.html', {'order': order})
 
 
 # Updated online_payment_view

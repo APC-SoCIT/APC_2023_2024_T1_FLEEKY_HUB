@@ -29,6 +29,8 @@ urlpatterns = [
 
     path('proceed-purchase/', views.proceed_purchase_view, name='proceed-purchase'),
     path('customers/proceed-purchase/pay-online', views.online_payment_view, name='pay-online'),
+    path('proceed-purchase/confirmation-cod-payment', views.confirmation_cod_payment, name='confirmation-cod-payment'),
+    path('proceed-purchase/success-cod-payment', views.success_cod_payment_view, name='success-cod-payment'),
 
 
 
