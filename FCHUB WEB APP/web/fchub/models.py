@@ -173,3 +173,25 @@ class Tracker(models.Model):
     month_of_purchase = models.PositiveSmallIntegerField(null=True, choices=MONTHS)
     qty = models.PositiveIntegerField(null=True)
     count = models.PositiveIntegerField(null=True)
+
+class Csv(models.Model):
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    csv_file = models.FileField(upload_to='fchub/admin/csv/')
+    file_name = models.CharField(max_length=255)  # Add a field for storing file name
+
+class CsvData(models.Model):
+    year = models.IntegerField()
+    month = models.CharField(max_length=20)
+    day = models.IntegerField()
+    location = models.CharField(max_length=100)
+    customerName = models.CharField(max_length=100)
+    setType = models.CharField(max_length=20)
+    color = models.CharField(max_length=20)
+    quantity = models.IntegerField()
+    count = models.IntegerField()
+    price = models.CharField(max_length=20)
+
+    def __str__(self):
+        return self.customerName
+
+

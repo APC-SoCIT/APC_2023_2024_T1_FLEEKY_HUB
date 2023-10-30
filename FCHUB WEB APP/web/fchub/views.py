@@ -1,12 +1,20 @@
+from io import TextIOWrapper
+import io
 from django.shortcuts import get_object_or_404, redirect, render
 from django.core.cache import cache
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse_lazy
 from customer.models import Customer, Order, Product, OrderItem
-from .models import Material, FleekyAdmin, Category, Tracker, User
-from .forms import FleekyAdminForm, MaterialForm, ProductForm, TrackerForm
+from .models import CsvData, Material, FleekyAdmin, Category, Tracker, User
+from .forms import  CsvUploadForm, FleekyAdminForm, MaterialForm, ProductForm, TrackerForm
 from django.contrib.auth.forms import UserCreationForm
+from .models import Csv  # Make sure you have this import
+import csv
+from .models import CsvData
+from django.contrib import messages
+import os
+from django.core.exceptions import ValidationError
 # Create your views here.
 def dashboard(request):
     active = request.user.fleekyadmin
@@ -43,16 +51,40 @@ def view_customer(request):
     return render(request, 'view/customers.html', {'customers': customers, 'addresses': addresses})
 
 def view_order(request):
+    # Get filter parameters from the request
+    order_date_filter = request.GET.get('order_date')
+    order_status_filter = request.GET.get('order_status')
+    total_price_filter = request.GET.get('total_price')
+    payment_type_filter = request.GET.get('payment_type')
+
+    # Query orders based on filter parameters
     orders = Order.objects.all()
+
+    if order_date_filter:
+        orders = orders.filter(order_date=order_date_filter)
+
+    if order_status_filter:
+        orders = orders.filter(status=order_status_filter)
+
+    if total_price_filter == "low_to_high":
+        orders = orders.order_by('total_price')
+    elif total_price_filter == "high_to_low":
+        orders = orders.order_by('-total_price')
+
+    if payment_type_filter:
+        if payment_type_filter == 'Online_Payment':
+            orders = orders.filter(payment_method='Online Payment')
+        elif payment_type_filter == 'cash_on_delivery':
+            orders = orders.filter(payment_method='Cash on Delivery')
+
     data = []
-    
+
     for order in orders:
         ordered_products = OrderItem.objects.filter(order=order)
         ordered_by = Customer.objects.filter(id=order.customer.id)
         data.append((ordered_products, ordered_by, order))
-    
-    return render(request, 'view/orders.html', {'data': data})
 
+    return render(request, 'view/orders.html', {'data': data})
 
 @login_required
 def view_product(request):
@@ -232,16 +264,107 @@ def view_manage_business(request):
     active = request.user.fleekyadmin
     return render(request,'manage-business/manage-business.html', {'active':active})
 
+def parse_csv_data(csv_file):
+    csv_data = []
+
+    try:
+        # Assuming csv_file is a File object
+        # Read the CSV content from the file
+        csv_content = csv_file.read().decode('utf-8')
+
+        # Create a CSV reader
+        csv_reader = csv.reader(io.StringIO(csv_content))
+
+        # Limit the number of samples to 6
+        sample_count = 0
+
+        # Iterate through the rows and add them to csv_data
+        for row in csv_reader:
+            csv_data.append(row)
+            sample_count += 1
+
+            if sample_count >= 6:
+                break
+
+    except Exception as e:
+        # Handle any exceptions that may occur during parsing
+        # You can log the error or raise an appropriate exception
+        pass
+
+    return csv_data
+
+ALLOWED_EXTENSIONS = {'.xlsx', '.xls', '.xlsm', '.xlsb', '.xltx', '.xltm', '.xlam', '.csv', '.ods', '.xml', '.txt', '.prn', '.dif', '.slk', '.htm', '.html', '.dbf', '.json'}
+
+def upload_csv(request):
+    if request.method == 'POST':
+        form = CsvUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            csv_file = form.cleaned_data['csv_file']
+
+            # Check the file extension
+            file_extension = os.path.splitext(csv_file.name)[1].lower()
+            if file_extension not in ALLOWED_EXTENSIONS:
+                # Add an error message and reload the page
+                messages.error(request, f'Unsupported file type: {file_extension}. Please upload a valid file.')
+                return redirect('fchub:upload-csv')
+
+            # Create a Csv object and save it with a unique name
+            csv = Csv(csv_file=csv_file)
+            csv.save()
+
+            # Rename the file with a unique name
+            csv.file_name = f'csv-{csv.id}-{csv.uploaded_at.strftime("%Y%m%d")}'
+            csv.save()
+
+            # Add a success message
+            messages.success(request, 'CSV file uploaded successfully.')
+
+            return redirect('fchub:upload-csv')
+
+        else:
+            # Add an error message
+            messages.error(request, 'Error uploading CSV file. Please check the file format.')
+
+    else:
+        form = CsvUploadForm()
+
+    # Get all uploaded CSV files
+    csv_files = Csv.objects.all()
+
+    # Fetch the most recent CSV entry
+    most_recent_csv = Csv.objects.order_by('-uploaded_at').first()
+    
+    # Parse the most recent CSV data (assuming it's a CSV string) into a list of lists
+    most_recent_csv.csv_data = parse_csv_data(most_recent_csv.csv_file)
+    
+    recent_csv_files = Csv.objects.order_by('-uploaded_at')[:5]
+
+    return render(request, 'manage-business/csv-template.html', {'form': form,'recent_csv_files':recent_csv_files ,'csv_files': csv_files, 'most_recent_csv': most_recent_csv})
+
+def delete_csv(request):
+    if request.method == 'POST':
+        file_id = request.POST.get('file_id')
+        try:
+            csv_file = Csv.objects.get(id=file_id)
+            # Delete the CSV file from your storage (if needed)
+            csv_file.csv_file.delete()
+            # Delete the Csv object from the database
+            csv_file.delete()
+        except Csv.DoesNotExist:
+            # Handle the case where the CSV file does not exist
+            pass
+
+    return redirect('fchub:upload-csv')  # Redirect to the page where CSV files are listed
 
 
 
 
 
 
-
-def list_admins(request):
+def users_admins(request):
     admins = FleekyAdmin.objects.all()
     return render(request, 'view/users-admin.html', {'admins': admins})
+
 
 def add_admin(request):
     if request.method == 'POST':
@@ -268,4 +391,4 @@ def add_admin(request):
 def delete_admin(request, pk):
     admin = get_object_or_404(FleekyAdmin, pk=pk)
     admin.delete()
-    return redirect('list-admins')  # Redirect to the list of admins after deleting
+    return redirect('fchub:users-admins')  # Redirect to the list of admins after deleting

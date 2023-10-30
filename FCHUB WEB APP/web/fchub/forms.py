@@ -1,11 +1,12 @@
 from django import forms
 from django.contrib.auth.models import User
-from .models import Material, Product
+from .models import Csv, Material, Product
 from django.contrib.auth.forms import UserCreationForm
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm
 from django.utils.translation import gettext as _
 from .models import FleekyAdmin, Tracker
+
 
 class ProductForm(forms.ModelForm):
     class Meta:
@@ -45,3 +46,9 @@ class TrackerForm(forms.ModelForm):
     class Meta:
         model = Tracker
         fields = '__all__'  # Include all fields from the Tracker model in the form
+
+
+class CsvUploadForm(forms.ModelForm):
+    class Meta:
+        model = Csv
+        fields = ['csv_file']

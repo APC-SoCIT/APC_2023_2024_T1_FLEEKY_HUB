@@ -127,7 +127,7 @@
               {% endfor %}
             </select>
           </div>
-
+          
           <div class="col-md-4">
             <label for="set_type">Set Type:</label>
             <select name="set_type" id="set_type" class="form-control">
@@ -148,7 +148,7 @@
         <a href="{% url 'guest:products' %}" class="btn btn-secondary mt-3 ml-2">Reset Filters</a>
       </form>
     </div>
-
+    <br>  <br>  <br>
     <div class="row">
       {% if products %}
         {% for p in products %}

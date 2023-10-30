@@ -26,14 +26,14 @@
                         Main Dashboard
                     </a>
                     <div class="sb-sidenav-menu-heading">Manage Reports</div>
-                    <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseLayouts" aria-expanded="false" aria-controls="collapseLayouts">
+                    <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseLayoutsPopulate" aria-expanded="false" aria-controls="collapseLayoutsPopulate">
                         <div class="sb-nav-link-icon"><i class="fa-solid fa-database"></i></div>
                         Populate Data
                         <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
                     </a>
-                    <div class="collapse" id="collapseLayouts" aria-labelledby="headingOne" data-bs-parent="#sidenavAccordion">
+                    <div class="collapse" id="collapseLayoutsPopulate" aria-labelledby="headingPopulate" data-bs-parent="#sidenavAccordion">
                         <nav class="sb-sidenav-menu-nested nav">
-                            <a class="nav-link" href="layout-static.html">ADD RAW DATA</a>
+                            <a class="nav-link" href="{% url 'fchub:upload-csv' %}">ADD RAW DATA</a>
                         </nav>
                         <nav class="sb-sidenav-menu-nested nav">
                             <a class="nav-link" href="layout-static.html">ADD WITHIN FCHUB MODEL</a>
@@ -48,15 +48,15 @@
                             <a class="nav-link" href="layout-static.html">ADD SALES PER LOCATION (REGION)</a>
                         </nav>
                     </div>
-                    <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapsePages" aria-expanded="false" aria-controls="collapsePages">
+                    <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseLayoutsSelling" aria-expanded="false" aria-controls="collapseLayoutsSelling">
                         <div class="sb-nav-link-icon"><i class="fas fa-book-open"></i></div>
                         Selling Wise
                         <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
                     </a>
-                    <div class="collapse" id="collapsePages" aria-labelledby="headingTwo" data-bs-parent="#sidenavAccordion">
-                        <nav class="sb-sidenav-menu-nested nav accordion" id="sidenavAccordionPages">
+                    <div class="collapse" id="collapseLayoutsSelling" aria-labelledby="headingSelling" data-bs-parent="#sidenavAccordion">
+                        <nav class="sb-sidenav-menu-nested nav accordion" id="sidenavAccordionSelling">
                             <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#pagesCollapseAuth" aria-expanded="false" aria-controls="pagesCollapseAuth">
-                               TOP SELLING
+                                TOP SELLING
                                 <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
                             </a>
                             <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#pagesCollapseAuth" aria-expanded="false" aria-controls="pagesCollapseAuth">
@@ -73,6 +73,29 @@
                             </a>
                         </nav>
                     </div>
+                    <div class="sb-sidenav-menu-heading">View and Edit Reports</div>
+                    <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseLayoutsView" aria-expanded="false" aria-controls="collapseLayoutsView">
+                        <div class="sb-nav-link-icon"><i class="fa-solid fa-database"></i></div>
+                        View Data
+                        <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
+                    </a>
+                    <div class="collapse" id="collapseLayoutsView" aria-labelledby="headingView" data-bs-parent="#sidenavAccordion">
+                        <nav class="sb-sidenav-menu-nested nav">
+                            <a class="nav-link" href="csv_data.html">CSV Data</a>
+                        </nav>
+                        <nav class="sb-sidenav-menu-nested nav">
+                            <a class="nav-link" href="fchub_data.html">FCHUB Data</a>
+                        </nav>
+                        <nav class="sb-sidenav-menu-nested nav">
+                            <a class="nav-link" href="edit_sales_per_product.html">View and Edit SALES PER PRODUCT</a>
+                        </nav>
+                        <nav class="sb-sidenav-menu-nested nav">
+                            <a class="nav-link" href="edit_sales_per_category.html">View and Edit SALES PER CATEGORY</a>
+                        </nav>
+                        <nav class="sb-sidenav-menu-nested nav">
+                            <a class="nav-link" href="edit_sales_per_location.html">View and Edit SALES PER LOCATION (REGION)</a>
+                        </nav>
+                    </div>
                     <div class="sb-sidenav-menu-heading">Visualize Data</div>
                     <a class="nav-link" href="charts.html">
                         <div class="sb-nav-link-icon"><i class="fas fa-chart-area"></i></div>
@@ -86,19 +109,16 @@
                         <div class="sb-nav-link-icon"><i class="fas fa-table"></i></div>
                         Pending Orders
                     </a>
-                    <div class="sb-sidenav-menu-heading  ">Manage Users</div>
+                    <div class="sb-sidenav-menu-heading">Manage Users</div>
                     <nav class="sb-sidenav-menu-nested nav">
-                        <a class="nav-link" href="{% url 'fchub:list-admins' %}"> <i class="fa-regular fa-user"></i> &nbsp; View Users</a>
+                        <a class="nav-link" href="{% url 'fchub:users-admins' %}"> <i class="fa-regular fa-user"></i> &nbsp; View Users</a>
                         <a class="nav-link" href="{% url 'fchub:add-admin' %}"><i class="fa-solid fa-user-plus"></i> &nbsp; Add Users</a>
                     </nav>
                 </div>
-
             </div>
-
             <div class="sb-sidenav-footer">
                 <div class="small">Logged in as:</div>
                 ({{ request.user }}), {{ active.first_name }} {{ active.last_name }}
             </div>
         </nav>
     </div>
-

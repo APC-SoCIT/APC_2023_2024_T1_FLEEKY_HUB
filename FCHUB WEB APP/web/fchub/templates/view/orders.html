@@ -4,11 +4,48 @@
 {% block content %}
 <div class="container">
     <h2 class="mb-4">View Orders</h2>
+
+    <!-- Filter options -->
+    <form method="get">
+        <div class="mb-3">
+            <label for="order_date">Order Date:</label>
+            <input type="date" name="order_date" id="order_date" value="{{ request.GET.order_date }}">
+        </div>
+        <div class="mb-3">
+            <label for="order_status">Order Status:</label>
+            <select name="order_status" id="order_status">
+                <option value="">All</option>
+                <option value="Pending" {% if request.GET.order_status == "Pending" %}selected{% endif %}>Pending</option>
+                <option value="Shipped" {% if request.GET.order_status == "Shipped" %}selected{% endif %}>Shipped</option>
+                <option value="Delivered" {% if request.GET.order_status == "Delivered" %}selected{% endif %}>Delivered</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="total_price">Total Price:</label>
+            <select name="total_price" id="total_price">
+                <option value="">All</option>
+                <option value="low_to_high" {% if request.GET.total_price == "low_to_high" %}selected{% endif %}>Low to High</option>
+                <option value="high_to_low" {% if request.GET.total_price == "high_to_low" %}selected{% endif %}>High to Low</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="payment_type">Payment Type:</label>
+            <select name="payment_type" id="payment_type">
+                <option value="">All</option>
+                <option value="online_payment" {% if request.GET.payment_type == "online_payment" %}selected{% endif %}>Online Payment</option>
+                <option value="cash_on_delivery" {% if request.GET.payment_type == "cash_on_delivery" %}selected{% endif %}>Cash on Delivery</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Apply Filters</button>
+        <a href="{% url 'fchub:orders' %}" class="btn btn-secondary">Reset Filters</a>
+    </form>
+
     <table class="table table-hover table-bordered" id="order-table">
         <thead>
             <tr>
                 <th>Order ID</th>
                 <th>Ordered Products</th>
+                <th>Type of Payment</th>
                 <th>Ordered By</th>
                 <th>Order Date</th>
                 <th>Order Status</th>
@@ -27,6 +64,7 @@
                             {% endfor %}
                         </ul>
                     </td>
+                    <td>{{ order.payment_method }}</td>
                     <td>{{ ordered_by.0.first_name }} {{ ordered_by.0.last_name }}</td>
                     <td>{{ order.order_date }}</td>
                     <td>{{ order.status }}</td>

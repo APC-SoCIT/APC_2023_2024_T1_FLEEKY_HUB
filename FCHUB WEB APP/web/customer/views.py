@@ -382,10 +382,10 @@ def proceed_purchase_view(request):
     elif f_region in regions_four:
         shipping_fee = Decimal('400')
     elif f_region in regions_five:
-        shipping_fee = Decimal('500.00')
+        shipping_fee = Decimal('500')
 
     total_price = with_vat + shipping_fee
-
+    print(shipping_fee)
     # Render the template without saving the order
     return render(request, 'process/proceed-purchase.html', {
         'shipping_fee': shipping_fee,
@@ -440,7 +440,7 @@ def confirmation_cod_payment(request):
     elif f_region in regions_four:
         shipping_fee = Decimal('400')
     elif f_region in regions_five:
-        shipping_fee = Decimal('500.00')
+        shipping_fee = Decimal('500')
 
     total_price = with_vat + shipping_fee
 
@@ -654,7 +654,7 @@ def online_payment_view(request):
                 status="Pending",
                 customer=customer,
                 shipping_address=customer_address,
-                payment_method="Online",  # Assuming online payment
+                payment_method="Online Payment",  # Assuming online payment
                 total_price=total_price,  # Use the calculated total price
                 order_date=timezone.now(),  # Include the current date and time
             )

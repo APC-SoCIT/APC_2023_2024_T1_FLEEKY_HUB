@@ -32,10 +32,15 @@ urlpatterns = [
     
     path('manage-business/', views.view_manage_business, name='manage-business'),
     
-    path('manage-business/list-admins', views.list_admins, name='list-admins'),
-    path('list-admins/', views.list_admins, name='list-admins'),
+    path('manage-business/users-admins', views.users_admins, name='users-admins'),
+    path('users/', views.users_admins, name='users-admins'),
     path('list-admins/add-admin/', views.add_admin, name='add-admin'),
     path('list-admins/delete-admin/<int:pk>/', views.delete_admin, name='delete-admin'),
+
+    path('upload-csv', views.upload_csv, name='upload-csv'),
+    path('delete-csv/', views.delete_csv, name='delete-csv'),
+
+
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

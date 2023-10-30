@@ -1,0 +1,160 @@
+{% include 'navbar/dashboard-side-navbar.html' %}
+{% block content %}
+<style>
+    .table-container {
+        overflow-x: auto;
+    }
+
+    .csv-list {
+        list-style-type: none;
+        padding: 0;
+    }
+
+    .csv-list-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid #ccc;
+    }
+
+    .csv-list-item a {
+        text-decoration: none;
+        color: #333;
+    }
+
+    .csv-list-item button {
+        margin-left: 10px;
+    }
+</style>
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3 class="text-center">Contents of the CSV</h3>
+                </div>
+                <div class="card-body">
+                    <div class="table-container">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Year</th>
+                                        <th>Month</th>
+                                        <th>Day</th>
+                                        <th>Location</th>
+                                        <th>Name</th>
+                                        <th>Fabric</th>
+                                        <th>Set</th>
+                                        <th>Color</th>
+                                        <th>Qty</th>
+                                        <th>Count</th>
+                                        <th>Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if most_recent_csv %}
+                                        <tr>
+                                            <td>{{ most_recent_csv.csv_data.0.0 }}</td>
+                                            <td>{{ most_recent_csv.csv_data.0.1 }}</td>
+                                            <td>{{ most_recent_csv.csv_data.0.2 }}</td>
+                                            <td>{{ most_recent_csv.csv_data.0.3 }}</td>
+                                            <td>{{ most_recent_csv.csv_data.0.4 }}</td>
+                                            <td>{{ most_recent_csv.csv_data.0.5 }}</td>
+                                            <td>{{ most_recent_csv.csv_data.0.6 }}</td>
+                                            <td>{{ most_recent_csv.csv_data.0.7 }}</td>
+                                            <td>{{ most_recent_csv.csv_data.0.8 }}</td>
+                                            <td>{{ most_recent_csv.csv_data.0.9 }}</td>
+                                            <td>{{ most_recent_csv.csv_data.0.10 }}</td>
+                                        </tr>
+                                        {% for row in most_recent_csv.csv_data|slice:"1:" %}
+                                            <tr>
+                                                <td>{{ row.0 }}</td>
+                                                <td>{{ row.1 }}</td>
+                                                <td>{{ row.2 }}</td>
+                                                <td>{{ row.3 }}</td>
+                                                <td>{{ row.4 }}</td>
+                                                <td>{{ row.5 }}</td>
+                                                <td>{{ row.6 }}</td>
+                                                <td>{{ row.7 }}</td>
+                                                <td>{{ row.8 }}</td>
+                                                <td>{{ row.9 }}</td>
+                                                <td>{{ row.10 }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <p>No recent uploads to display information from.</p>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3 class="text-center">Recent CSV</h3>
+                </div>
+                <div class="card-body">
+                    <ul class="csv-list">
+                        {% if recent_csv_files %}
+                            {% for file in recent_csv_files %}
+                                <li class="csv-list-item">
+                                    <a href="{{ file.csv_file.url }}">{{ file.file_name }}</a>
+                                </li>
+                            {% endfor %}
+                        {% else %}
+                            <p>No files have been uploaded yet.</p>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3 class="text-center">Upload CSV File</h3>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        <div class="container mt-3">
+                            {% for message in messages %}
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        {{ form.as_p }}
+
+                        <div class="text-center mt-3">
+                            <button type="submit" class="btn btn-primary">Upload CSV</button>
+                        </div>
+                    </form>
+
+                    {% if request.POST and request.FILES and not messages %}
+                        <div class="container mt-3">
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                Unsupported file type. Please upload a valid file with one of the following extensions:
+                                .xlsx, .xls, .xlsm, .xlsb, .xltx, .xltm, .xlam, .csv, .ods, .xml, .txt, .prn, .dif, .slk, .htm, .html, .dbf, .json
+                                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>            
+        </div>
+    </div>
+</div>
+{% endblock %}
