@@ -9,17 +9,22 @@
     <form method="get">
         <div class="mb-3">
             <label for="order_date">Order Date:</label>
-            <input type="date" name="order_date" id="order_date" value="{{ request.GET.order_date }}">
+            <input type="date" name="order_date" id="order_date" value="{{ request.GET.order_date|default:'' }}">
         </div>
         <div class="mb-3">
             <label for="order_status">Order Status:</label>
             <select name="order_status" id="order_status">
                 <option value="">All</option>
-                <option value="Pending" {% if request.GET.order_status == "Pending" %}selected{% endif %}>Pending</option>
-                <option value="Shipped" {% if request.GET.order_status == "Shipped" %}selected{% endif %}>Shipped</option>
-                <option value="Delivered" {% if request.GET.order_status == "Delivered" %}selected{% endif %}>Delivered</option>
+                {% for status_choice in status_choices %}
+                    <option value="{{ status_choice.0 }}" {% if request.GET.order_status == status_choice.0 %}selected{% endif %}>
+                        {{ status_choice.1 }}
+                    </option>
+                {% endfor %}
             </select>
         </div>
+        
+            
+        
         <div class="mb-3">
             <label for="total_price">Total Price:</label>
             <select name="total_price" id="total_price">
@@ -33,7 +38,7 @@
             <select name="payment_type" id="payment_type">
                 <option value="">All</option>
                 <option value="online_payment" {% if request.GET.payment_type == "online_payment" %}selected{% endif %}>Online Payment</option>
-                <option value="cash_on_delivery" {% if request.GET.payment_type == "cash_on_delivery" %}selected{% endif %}>Cash on Delivery</option>
+                <option value="cash_on_delivery" {% if request.GET.payment_type == "cash_on_delivery" %}selected{% endif %}>Cash on Delivery (COD)</option>
             </select>
         </div>
         <button type="submit" class="btn btn-primary">Apply Filters</button>
@@ -65,13 +70,13 @@
                         </ul>
                     </td>
                     <td>{{ order.payment_method }}</td>
-                    <td>{{ ordered_by.0.first_name }} {{ ordered_by.0.last_name }}</td>
+                    <td>{{ ordered_by.first_name }} {{ ordered_by.last_name }}</td>
                     <td>{{ order.order_date }}</td>
                     <td>{{ order.status }}</td>
                     <td>₱{{ order.total_price }}</td>
                     <td>
                         <div class="btn-group" role="group">
-                            <a href="#" class="btn btn-primary btn-sm">
+                            <a href="{% url 'fchub:update-status' order.id %}" class="btn btn-primary btn-sm">
                                 <i class="fas fa-edit fa-lg"></i> <!-- Larger Icon for Change Status -->
                             </a>
                             <a href="#" class="btn btn-success btn-sm">

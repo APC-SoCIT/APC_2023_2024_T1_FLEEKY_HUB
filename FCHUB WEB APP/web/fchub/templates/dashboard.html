@@ -65,7 +65,6 @@
             </div>
         </div>
 
-        <!-- Recent Orders Table -->
         <div class="row mt-4">
             <div class="col-md-12">
                 <h4 class="text-secondary">Recent Orders</h4>
@@ -73,17 +72,23 @@
                     <thead>
                         <tr>
                             <th>Order Number</th>
-                            <th>Product</th>
+                            <th>Product(s)</th>
                             <th>Ordered By</th>
                             <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for order in recent_orders %}
+                        {% for products, ordered_by, order in data %}
                             <tr>
                                 <td>{{ order.order_number }}</td>
-                                <td>{{ order.orderitem_set.first.product.name }}</td>
-                                <td>{{ order.customer.user.first_name }} {{ order.customer.user.last_name }}</td>
+                                <td>
+                                    <ul>
+                                        {% for product in products %}
+                                            <li>{{ product.name }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </td>
+                                <td>{{ ordered_by.first_name }} {{ ordered_by.last_name }}</td>
                                 <td>{{ order.status }}</td>
                             </tr>
                         {% endfor %}
@@ -91,5 +96,4 @@
                 </table>
             </div>
         </div>
-    </div>
 {% endblock content %}

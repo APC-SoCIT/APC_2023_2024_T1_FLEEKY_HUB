@@ -12,8 +12,13 @@ urlpatterns = [
     path('logout/', views.fchub_logout, name='logout'),
 
     path('customers/', views.view_customer, name='customers'),
-    path('orders/', views.view_order, name='orders'),
 
+    path('orders/', views.view_order, name='orders'),
+    path('update-status/<int:order_id>/', views.update_status, name='update-status'),
+    
+    
+    
+    
     path('category/', views.category_list, name='category'),
     path('category/add', views.add_category, name='add-category'),
     path('category/edit/<int:category_id>/', views.edit_category, name='edit-category'),

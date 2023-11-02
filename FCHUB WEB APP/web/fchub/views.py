@@ -20,34 +20,36 @@ from django.db.models import Q
 from django.core.exceptions import ValidationError
 from datetime import datetime
 # Create your views here.
+
+
 def dashboard(request):
-    try:
-        active = request.user.fleekyadmin
-    except FleekyAdmin.DoesNotExist:
-        active = None  # Handle the case when FleekyAdmin is missing
-    
     # Calculate the counts
-    order_count = Order.objects.count()
-    product_count = Product.objects.count()
-    
-    # Count only customers
     customer_count = Customer.objects.count()
-    
-    print(customer_count)
-
-    # Calculate the count of pending orders
+    product_count = Product.objects.count()
+    order_count = Order.objects.count()
     pending_order_count = Order.objects.filter(status='Pending').count()
+    # Fetch the 5 most recent orders
+    orders = Order.objects.all().order_by('-order_date')[:5]
+    
+    # Prepare lists for ordered products and ordered by
+    ordered_products = []
+    ordered_bys = []
 
-    recent_orders = Order.objects.all().order_by('-order_date')[:5]
+    for order in orders:
+        ordered_items = OrderItem.objects.filter(order=order)
+        products = [item.product for item in ordered_items]
+        customer = Customer.objects.get(user=order.customer)
+        ordered_products.append(products)
+        ordered_bys.append(customer)
 
     context = {
-        'active': active,
         'customer_count': customer_count,
         'product_count': product_count,
         'order_count': order_count,
         'pending_order_count': pending_order_count,
-        'recent_orders': recent_orders,
+        'data': zip(ordered_products, ordered_bys, orders),
     }
+
     return render(request, 'dashboard.html', context)
 
 def fchub_logout(request):
@@ -64,20 +66,27 @@ def view_customer(request):
 def view_order(request):
     # Get filter parameters from the request
     order_date_filter = request.GET.get('order_date')
-    order_status_filter = request.GET.get('order_status')
+    order_status_filter = request.GET.get('order_status')  # Updated filter parameter
     total_price_filter = request.GET.get('total_price')
     payment_type_filter = request.GET.get('payment_type')
 
     # Start with an initial queryset of all orders
     orders = Order.objects.all()
-
+    STATUS_CHOICES = Order.STATUS_CHOICES 
     # Apply filters based on user input
     if order_date_filter:
-        # Assuming 'order_date' is a DateField in the Order model
-        orders = orders.filter(order_date=order_date_filter)
+        try:
+            # Assuming 'order_date' is a DateField in the Order model
+            # Convert the input date to a datetime.date object
+            order_date_filter = datetime.strptime(order_date_filter, '%Y-%m-%d').date()
+            # Filter orders where the order date matches the input date
+            orders = orders.filter(order_date=order_date_filter)
+        except ValueError:
+            # Handle invalid date format gracefully (you can show an error message)
+            pass
 
-    if order_status_filter:
-        # Assuming 'status' is a field in the Order model
+    if order_status_filter:  # Check if the filter parameter is not empty
+        # Filter orders where the status matches the input status
         orders = orders.filter(status=order_status_filter)
 
     if total_price_filter == "low_to_high":
@@ -88,22 +97,46 @@ def view_order(request):
 
     if payment_type_filter:
         # Assuming 'payment_method' is a field in the Order model
-        if payment_type_filter == 'Online_Payment':
+        if payment_type_filter == 'Online Payment':
+            # Correct the filter value to match your model
             orders = orders.filter(payment_method='Online Payment')
-        elif payment_type_filter == 'cash_on_delivery':
-            orders = orders.filter(payment_method='Cash on Delivery')
+        elif payment_type_filter == 'Cash on Delivery (COD)':
+            orders = orders.filter(payment_method='Cash on Delivery (COD)')
 
     # Annotate each order with the sum of total item prices
-    orders = orders.annotate(total_item_price=Sum(F('order_items__item_total')))
+    orders = orders.annotate(total_item_price=Sum('order_items__item_total'))
 
     data = []
 
     for order in orders:
         ordered_items = order.order_items.all()
-        ordered_by = order.customer
+        ordered_by = Customer.objects.get(user=order.customer)
         data.append((ordered_items, ordered_by, order))
 
-    return render(request, 'view/orders.html', {'data': data})
+    return render(request, 'view/orders.html', {'data': data, 'status_choices': STATUS_CHOICES})
+
+
+
+def update_status(request, order_id):
+    # Get the order object based on the order_id
+    order = Order.objects.get(id=order_id)
+
+    # Check if the request method is POST
+    if request.method == 'POST':
+        new_status = request.POST.get('new_status')
+
+        # Update the order status
+        order.status = new_status
+        order.save()
+
+        # Redirect back to the 'update-status' view with the updated order_id
+        return redirect('fchub:orders')
+
+    # Pass STATUS_CHOICES to the template
+    return render(request, 'update/update-status.html', {'order': order, 'status_choices': Order.STATUS_CHOICES})
+
+
+
 
 @login_required
 def view_product(request):

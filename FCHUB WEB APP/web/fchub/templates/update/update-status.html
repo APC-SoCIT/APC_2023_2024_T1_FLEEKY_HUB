@@ -1,0 +1,32 @@
+{% extends 'navbar/dashboard-navbar.html' %}
+{% block content %}
+    <h1>Change Order Status</h1>
+    <p>Order ID: {{ order.id }}</p>
+    <p>Current Status: {{ order.get_status_display }}</p>
+
+    <form method="post">
+        {% csrf_token %}
+        <label for="new_status">Select New Status:</label>
+        <select name="new_status" id="new_status">
+            {% for choice in order.STATUS_CHOICES %}
+                <option value="{{ choice.0 }}">{{ choice.1 }}</option>
+            {% endfor %}
+        </select>
+        <br>
+        <input type="submit" value="Change Status">
+    </form>
+
+    <p>
+        {% if order.status == 'Pending' %}
+            This order is pending and waiting for processing.
+        {% elif order.status == 'Order Confirmed' %}
+            This order is confirmed and ready for processing.
+        {% elif order.status == 'Out for Delivery' %}
+            This order is out for delivery to the customer.
+        {% elif order.status == 'Delivered' %}
+            This order has been successfully delivered to the customer.
+        {% else %}
+            Unknown status.
+        {% endif %}
+    </p>
+{% endblock %}
