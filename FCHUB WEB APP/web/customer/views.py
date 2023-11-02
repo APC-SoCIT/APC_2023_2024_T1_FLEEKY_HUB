@@ -481,14 +481,14 @@ def success_cod_payment_view(request):
 @login_required
 def online_payment_view(request):
     # Your PayMongo API key (replace with your actual API key)
-    api_key = "Basic c2tfdGVzdF85b3ltdlhraDhncrBwWmpHQnhYeFpjVFU6QEZsZWVreWh1Yl8yMDIzIQ=="
+    api_key = "Basic c2tfdGVzdF85b3ltdlhraDhncnBwWmpHQnhYeFpjVFU6"
 
     user = request.user
     customer = get_object_or_404(Customer, user=user)
     customer_address = get_object_or_404(Address, customer=customer)
 
     # Retrieve the user's cart using the Cart model
-    cart = Cart.objects.get_or_create_cart(customer=customer)
+    cart, created = Cart.objects.get_or_create_cart(customer=customer)
     cart_items = cart.cartitem_set.all()
 
     total = cart.total_price
@@ -555,6 +555,7 @@ def online_payment_view(request):
     line_items.append(vat_line_item)
 
     fname = f"{customer.first_name} {customer.last_name}"
+    
 
     # Prepare the payload for PayMongo API
     payload = {
@@ -575,8 +576,8 @@ def online_payment_view(request):
                 "send_email_receipt": False,  # Set to False
                 "show_description": True,
                 "show_line_items": True,
-                "cancel_url": reverse('customer:proceed_purchase'),  # Cancel URL
-                "success_url": reverse('customer:home'),  # Success URL
+                "cancel_url": request.build_absolute_uri(reverse('customer:proceed-purchase')),  # Cancel URL
+                "success_url":request.build_absolute_uri(reverse('customer:home')),  # Success URL
                 "description": "Order Description",
                 "line_items": line_items,
                 "payment_method_types": ["gcash", "grab_pay", "paymaya"]  # Add payment method types
@@ -605,12 +606,13 @@ def online_payment_view(request):
 
             order = Order.objects.create(
                 status="Pending",
-                customer=customer,
+                customer=customer.user,  # Use the related User instance, assuming "user" is the correct attribute
                 shipping_address=customer_address,
-                payment_method="Online Payment",  # Assuming online payment
-                total_price=total_price,  # Use the calculated total price
-                order_date=timezone.now(),  # Include the current date and time
+                payment_method="Online Payment",
+                total_price=total_price,
+                order_date=timezone.now(),
             )
+
 
             # Create OrderProduct instances for each product in the cart
             for cart_item in cart_items:
