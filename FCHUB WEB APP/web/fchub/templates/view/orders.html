@@ -79,10 +79,10 @@
                             <a href="{% url 'fchub:update-status' order.id %}" class="btn btn-primary btn-sm">
                                 <i class="fas fa-edit fa-lg"></i> <!-- Larger Icon for Change Status -->
                             </a>
-                            <a href="#" class="btn btn-success btn-sm">
+                            <a href="{% url 'fchub:generate-invoice' order.id %}" target="_blank" class="btn btn-success btn-sm">
                                 <i class="fas fa-download fa-lg"></i> <!-- Larger Icon for Download Order -->
                             </a>
-                            <a href="#" class="btn btn-info btn-sm">
+                            <a href="{% url 'fchub:full-details' order.id %}" class="btn btn-info btn-sm">
                                 <i class="fas fa-info-circle fa-lg"></i> <!-- Larger Icon for View Details -->
                             </a>
                         </div>

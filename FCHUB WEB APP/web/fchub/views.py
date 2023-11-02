@@ -1,13 +1,15 @@
 
+from decimal import Decimal
 from io import TextIOWrapper
 import io
 from django.db.models import F, Sum
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.core.cache import cache
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse_lazy
-from customer.models import Customer, Order, Product, OrderItem
+from customer.models import Address, Customer, Order, Product, OrderItem
 from .models import CsvData, Material, FleekyAdmin, Category, Tracker, User
 from .forms import  CategoryForm, CsvUploadForm, FleekyAdminForm, MaterialForm, ProductForm, TrackerForm
 from django.contrib.auth.forms import UserCreationForm
@@ -19,6 +21,9 @@ import os
 from django.db.models import Q
 from django.core.exceptions import ValidationError
 from datetime import datetime
+from xhtml2pdf import pisa
+from django.template.loader import get_template
+
 # Create your views here.
 
 
@@ -115,8 +120,6 @@ def view_order(request):
 
     return render(request, 'view/orders.html', {'data': data, 'status_choices': STATUS_CHOICES})
 
-
-
 def update_status(request, order_id):
     # Get the order object based on the order_id
     order = Order.objects.get(id=order_id)
@@ -134,6 +137,145 @@ def update_status(request, order_id):
 
     # Pass STATUS_CHOICES to the template
     return render(request, 'update/update-status.html', {'order': order, 'status_choices': Order.STATUS_CHOICES})
+
+
+def render_to_pdf(template_path, context_dict):
+    template = get_template(template_path)
+    html = template.render(context_dict)
+    result = io.BytesIO()
+    pdf = pisa.pisaDocument(io.BytesIO(html.encode("UTF-8")), result)
+    if not pdf.err:
+        return result.getvalue()
+    return None
+
+def generate_invoice(request, order_id):
+    # Ensure the user is an admin or has the necessary permissions
+    if not request.user.is_staff:
+        return HttpResponse("Permission denied", status=403)
+
+    # Fetch the order with the given order_id
+    order = get_object_or_404(Order, id=order_id)
+
+    # Retrieve related customer, address, and order items
+    customer = order.customer
+    shipping_address = order.shipping_address
+    order_items = order.order_items.all()
+
+    # Calculate the total price for the order
+    total_price = sum(item.item_total for item in order_items)
+
+    # Access the user-related fields from the customer's profile
+    customer_profile = Customer.objects.get(user=order.customer)
+    customer_address = get_object_or_404(Address, customer=customer_profile)
+
+    # Calculate VAT and total with VAT
+    vat_rate = Decimal('0.12')
+    vat = total_price * vat_rate
+    with_vat = total_price + vat
+
+    # Determine the shipping fee based on the region
+    f_region = customer_address.region
+    shipping_fee = 0
+
+    regions_three = ["National Capital Region (NCR)", "Region I (Ilocos Region)", "Region II (Cagayan Valley)",
+                     "Region III (Central Luzon)", "Region IV-A (CALABARZON)", "Region V (Bicol Region)"]
+    regions_four = ["Region VI (Western Visayas)", "Region VII (Central Visayas)", "Region VIII (Eastern Visayas)"]
+    regions_five = ["Region IX (Zamboanga Peninsula)", "Region X (Northern Mindanao)",
+                    "Region XI (Davao Region)", "Region XII (SOCCSKSARGEN)", "Region XIII (Caraga)",
+                    "Cordillera Administrative Region (CAR)", "Autonomous Region in Muslim Mindanao (ARMM)"]
+
+    if f_region in regions_three:
+        shipping_fee = Decimal('300')
+    elif f_region in regions_four:
+        shipping_fee = Decimal('400')
+    elif f_region in regions_five:
+        shipping_fee = Decimal('500')
+
+    # Calculate the total price including VAT and shipping fee
+    total_price = with_vat + shipping_fee
+
+    # Define context data to pass to the template
+    context = {
+        'customer': customer,
+        'customer_profile': customer_profile,
+        'shipping_address': shipping_address,
+        'order': order,
+        'order_items': order_items,
+        'total_price': total_price,
+        'vat': vat,
+        'with_vat': with_vat,
+        'shipping_fee': shipping_fee,
+    }
+
+    # Render the HTML template as a PDF
+    pdf = render_to_pdf('view/invoice.html', context)
+    if pdf:
+        response = HttpResponse(pdf, content_type='application/pdf')
+        response['Content-Disposition'] = 'filename="invoice.pdf"'
+        return response
+
+    return HttpResponse("Error rendering PDF", status=500)
+
+def view_full_details(request, order_id):
+    # Ensure the user is an admin or has the necessary permissions
+    if not request.user.is_staff:
+        return HttpResponse("Permission denied", status=403)
+
+    # Fetch the order with the given order_id
+    order = get_object_or_404(Order, id=order_id)
+
+    # Retrieve related customer, address, and order items
+    customer = order.customer
+    shipping_address = order.shipping_address
+    order_items = order.order_items.all()
+
+    # Calculate the total price for the order
+    total_price = sum(item.item_total for item in order_items)
+
+    # Access the user-related fields from the customer's profile
+    customer_profile = Customer.objects.get(user=order.customer)
+    customer_address = get_object_or_404(Address, customer=customer_profile)
+
+    # Calculate VAT and total with VAT
+    vat_rate = Decimal('0.12')
+    vat = total_price * vat_rate
+    with_vat = total_price + vat
+
+    # Determine the shipping fee based on the region
+    f_region = customer_address.region
+    shipping_fee = 0
+
+    regions_three = ["National Capital Region (NCR)", "Region I (Ilocos Region)", "Region II (Cagayan Valley)",
+                     "Region III (Central Luzon)", "Region IV-A (CALABARZON)", "Region V (Bicol Region)"]
+    regions_four = ["Region VI (Western Visayas)", "Region VII (Central Visayas)", "Region VIII (Eastern Visayas)"]
+    regions_five = ["Region IX (Zamboanga Peninsula)", "Region X (Northern Mindanao)",
+                    "Region XI (Davao Region)", "Region XII (SOCCSKSARGEN)", "Region XIII (Caraga)",
+                    "Cordillera Administrative Region (CAR)", "Autonomous Region in Muslim Mindanao (ARMM)"]
+
+    if f_region in regions_three:
+        shipping_fee = Decimal('300')
+    elif f_region in regions_four:
+        shipping_fee = Decimal('400')
+    elif f_region in regions_five:
+        shipping_fee = Decimal('500')
+
+    # Calculate the total price including VAT and shipping fee
+    total_price = with_vat + shipping_fee
+
+    # Define context data to pass to the template
+    context = {
+        'customer': customer,
+        'customer_profile': customer_profile,
+        'shipping_address': shipping_address,
+        'order': order,
+        'order_items': order_items,
+        'total_price': total_price,
+        'vat': vat,
+        'with_vat': with_vat,
+        'shipping_fee': shipping_fee,
+    }
+
+    return render(request, 'view/full-details.html', context)
 
 
 
@@ -507,3 +649,5 @@ def delete_admin(request, pk):
     admin = get_object_or_404(FleekyAdmin, pk=pk)
     admin.delete()
     return redirect('fchub:users-admins')  # Redirect to the list of admins after deleting
+
+
