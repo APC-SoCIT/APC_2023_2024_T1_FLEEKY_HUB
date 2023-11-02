@@ -15,7 +15,7 @@
           <th>Picture</th>
           <th>Contact</th>
           <th>Email</th>
-          <th>Address</th>
+          <th>Addresses</th>
         </tr>
       </thead>
       <tbody>
@@ -27,13 +27,19 @@
           <td>{{ c.phone_number }}</td>
           <td>{{ c.email }}</td>
           <td>
-            {% if c.address %}
-                {{ c.address.detailed_address }}<br>
-                {{ c.address.barangay }}<br>
-                {{ c.address.city }}, {{ c.address.province }}, {{ c.address.region }} {{ c.address.zipcode }}
-            {% else %}
-                No Address Available
-            {% endif %}
+            {% for address in c.address_customers.all %}
+              <div class="address">
+                <strong>Detailed Address:</strong> {{ address.detailed_address }}<br>
+                <strong>Street:</strong> {{ address.street }}<br>
+                <strong>Barangay:</strong> {{ address.barangay }}<br>
+                <strong>City:</strong> {{ address.city }}<br>
+                <strong>Province:</strong> {{ address.province }}<br>
+                <strong>Region:</strong> {{ address.region }}<br>
+                <strong>Zipcode:</strong> {{ address.zipcode }}
+              </div>
+            {% empty %}
+              No Addresses Available
+            {% endfor %}
           </td>
         </tr>
         {% endfor %}

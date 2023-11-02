@@ -22,6 +22,11 @@
         margin-bottom: 20px;
     }
 
+    .total-price-label {
+        font-size: 1.5rem;
+        margin-top: 20px;
+    }
+
     .order-details-title {
         font-size: 1.5rem;
         margin-top: 20px;
@@ -38,11 +43,6 @@
         border: 1px solid #ddd;
         padding: 8px;
         text-align: left;
-    }
-
-    .total-price-label,
-    .payment-method-label {
-        font-weight: bold;
     }
 
     .back-button {
@@ -65,19 +65,18 @@
             </tr>
         </thead>
         <tbody>
-            {% for item in order.orderitem_set.all %}
+            {% for item in order_items %}
             <tr>
                 <td>{{ item.product.name }}</td>
                 <td>{{ item.quantity }}</td>
-                <td>PHP {{ item.product_price }}</td>
-                <td>PHP {{ item.item_total }}</td>
+                <td>₱{{ item.product.price|floatformat:2 }}</td>
+                <td>₱{{ item.item_total|floatformat:2 }}</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 
-    <p><strong class="total-price-label">Total Price:</strong> PHP {{ order.total_price }}</p>
-    <p><strong class="payment-method-label">Payment Method:</strong> Cash on Delivery (COD)</p>
+    <p><strong class="total-price-label">Total Price:</strong> ₱{{ order.total_price|floatformat:2 }}</p>
 
     <a href="{% url 'customer:home' %}" class="btn btn-primary back-button">Back to Home</a>
 </div>

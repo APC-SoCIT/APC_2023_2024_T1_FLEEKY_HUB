@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.models import User
-from .models import Csv, Material, Product
+from .models import Category, Csv, Material, Product
 from django.contrib.auth.forms import UserCreationForm
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm
@@ -19,7 +19,12 @@ class ProductForm(forms.ModelForm):
         for field_name, field in self.fields.items():
             if field_name != 'name':
                 field.required = False
-
+                
+class CategoryForm(forms.ModelForm):
+    class Meta:
+        model = Category
+        fields = ['fabric', 'setType', 'description']
+        
 class FleekyAdminForm(forms.ModelForm):
     class Meta:
         model = FleekyAdmin

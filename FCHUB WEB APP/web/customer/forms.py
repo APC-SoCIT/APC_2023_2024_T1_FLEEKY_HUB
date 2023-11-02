@@ -47,7 +47,45 @@ class SignupForm(UserCreationForm):
             if password1 and password2 and password1 != password2:
                 raise forms.ValidationError("Passwords do not match. Please enter matching passwords.")
 
+class CustomerProfileForm(forms.ModelForm):
+    class Meta:
+        model = Customer
+        fields = ['first_name', 'last_name', 'email', 'phone_number', 'gender', 'profile_pic']
+    
+    region = forms.CharField(max_length=100, required=False)
+    province = forms.CharField(max_length=100, required=False)
+    city = forms.CharField(max_length=100, required=False)
+    barangay = forms.CharField(max_length=100, required=False)
+    street = forms.CharField(max_length=100, required=False)
+    detailed_address = forms.CharField(max_length=250, required=False)
+    zipcode = forms.CharField(max_length=10, required=False)
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.address:
+            address = self.instance.address
+            self.fields['region'].initial = address.region
+            self.fields['province'].initial = address.province
+            self.fields['city'].initial = address.city
+            self.fields['barangay'].initial = address.barangay
+            self.fields['street'].initial = address.street
+            self.fields['detailed_address'].initial = address.detailed_address
+            self.fields['zipcode'].initial = address.zipcode
+
+    def save(self, commit=True):
+        customer = super().save(commit=False)
+        address, created = Address.objects.get_or_create(customer=customer)
+        address.region = self.cleaned_data['region']
+        address.province = self.cleaned_data['province']
+        address.city = self.cleaned_data['city']
+        address.barangay = self.cleaned_data['barangay']
+        address.street = self.cleaned_data['street']
+        address.detailed_address = self.cleaned_data['detailed_address']
+        address.zipcode = self.cleaned_data['zipcode']
+        if commit:
+            address.save()
+            customer.save()
+        return customer
 
 class UserEditForm(UserChangeForm):
     class Meta:

@@ -10,18 +10,18 @@
   <style>
     /* Container style */
     .cart-container {
-      background-color: #f5f5f5;
+      background-color: #f8f8f8;
       font-family: 'Arial', sans-serif;
       padding: 20px;
       border-radius: 5px;
-      box-shadow: 0px 0px 5px 1px #ddd;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
     }
 
     /* Cart title style */
     .cart-title {
       text-align: center;
       color: #333;
-      font-size: 1.8rem;
+      font-size: 2rem;
       margin-bottom: 20px;
     }
 
@@ -113,6 +113,7 @@
       background-color: #d14030;
     }
 
+    /* Notification style */
     .notification {
       background-color: #4CAF50;
       color: #fff;
@@ -126,7 +127,7 @@
       border-radius: 5px;
     }
   </style>
-
+  <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
   <script>
     function confirmDelete(productName, productID) {
       if (confirm(`Are you sure you want to delete ${productName} from your cart?`)) {
@@ -188,7 +189,8 @@
           <th>Product Name</th>
           <th>Description</th>
           <th>Price (₱)</th>
-          <th>Action (Quantity)</th>
+          <th>Quantity</th>
+          <th>Action</th>
         </tr>
       </thead>
       <tbody>
@@ -198,12 +200,14 @@
             <td>{{ item.product.name }}</td>
             <td>{{ item.product.description }}</td>
             <td>₱ {{ item.product.price }}</td>
+            <td> <span id="quantity-{{ item.product.id }}">{{ item.quantity }}</span> </td>
             <td>
               <div class="quantity-controls">
-                <span id="quantity-{{ item.product.id }}">{{ item.quantity }}</span>
-                <button onclick="updateQuantity('{{ item.product.id }}', 'decrease')">-</button>
-                <button onclick="updateQuantity('{{ item.product.id }}', 'increase')">+</button>
+                
+                <a href="{% url 'customer:increase-quantity' item.product.pk %}" class="quantity-button-link"><i class="fa-solid fa-plus fa-sm" style="color: #ffffff;"></i></a>                
+                <a href="{% url 'customer:decrease-quantity' item.product.pk %}" class="quantity-button-link"><i class="fa-solid fa-minus fa-sm" style="color: #ffffff"></i> </a>
                 <button class="delete-button" onclick="confirmDelete('{{ item.product.name }}', '{{ item.product.id }}')">DELETE</button>
+
               </div>
             </td>
           </tr>
@@ -211,11 +215,11 @@
       </tbody>
     </table>
     <div class="cart-actions">
-      <span id="total-price" class="total-price">Total ₱ {{ total }}</span>
+      <span id="total-price" class="total-price">Total ₱ {{ total_price }}</span>
       <a href="{% url 'customer:proceed-purchase' %}">
         <button class="purchase-button">Purchase</button>
       </a>
-      <button class="clear-all-button" onclick="confirmClearAll()">Clear All</button>
+      <button class="clear-all-button" onclick="confirmClearAll()" href="{% url 'customer:clear-cart' %}">Clear Cart</button>
     </div>
   </div>
 
@@ -224,5 +228,22 @@
 
   <script src="{% static 'vendors/jquery/jquery-3.4.1.js' %}"></script>
 </div>
+<style>
+  .quantity-button-link {
+    text-decoration: none; /* Remove the default underline */
+    background-color: #695aa6;
+    color: #fff;
+    border: none;
+    padding: 5px 10px;
+    font-size: 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    margin: 0 5px;
+    display: inline-block; /* Ensure they appear as inline elements */
+  }
 
+  .quantity-button-link:hover {
+    background-color: #0BB100;
+  }
+</style>
 {% endblock content %}

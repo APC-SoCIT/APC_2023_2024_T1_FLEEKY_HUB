@@ -1,0 +1,65 @@
+{% extends "navbar/dashboard-navbar.html" %}
+
+{% block content %}
+  <div class="container mt-4">
+    <h2>Add Category</h2>
+    <form method="post" class="simple-form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button type="submit" class="btn btn-primary">Add Category</button>
+      <a href="{% url 'fchub:category' %}" class="btn btn-secondary">Back</a>
+    </form>
+  </div>
+  
+  <style>
+    /* CSS styles */
+
+    .edit-category-form {
+      background-color: #fff;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    label {
+      font-weight: bold;
+    }
+
+    .btn-primary {
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .btn-primary:hover {
+      background-color: #0056b3;
+    }
+
+    .btn-secondary {
+      background-color: #6c757d;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .btn-secondary:hover {
+      background-color: #5a6268;
+    }
+  </style>
+{% endblock %}

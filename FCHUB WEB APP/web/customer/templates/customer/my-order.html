@@ -1,5 +1,4 @@
 {% extends 'customer/navbar.html' %}
-
 {% block content %}
   <div class="container my-5">
     <div class="row">
@@ -22,7 +21,7 @@
               <p class="order-label">Total Price: ₱{{ order.total_price }}</p>
               <p class="order-label">Payment Method: {{ order.payment_method }}</p>
               <p class="order-label">Status: {{ order.status }}</p>
-              <button class="download-button">Download Invoice</button>
+              <a class="download-button" href="{% url 'customer:generate_invoice' order_id=order.id %}" target="_blank">Download Invoice</a>
             </div>
           </li>
         {% empty %}

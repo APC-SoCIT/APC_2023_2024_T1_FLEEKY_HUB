@@ -7,6 +7,13 @@
       <h2 class="text-dark">Add Material</h2>
     </div>
     <div class="panel-body">
+      {% if messages %}
+        <ul class="messages">
+          {% for message in messages %}
+            <li>{% if message.tags %} "{{ message.tags }}"{% endif %} {{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
       <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         {{ form.as_p }}

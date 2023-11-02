@@ -1,3 +1,4 @@
+import datetime
 import random
 import string
 from django.db import models
@@ -83,7 +84,7 @@ class Product(models.Model):
     price = models.DecimalField(decimal_places=2, max_digits=10)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
     product_image = models.ImageField(upload_to='customers/static/product_images', null=True, blank=True)
-    stock = models.PositiveIntegerField()
+    stock = models.PositiveIntegerField(default=0)
     color = models.CharField(max_length=100)
     custom_id = models.CharField(max_length=20, unique=True, blank=True, null=True) 
     def __str__(self):
@@ -112,13 +113,29 @@ class Product(models.Model):
 
 
 class Material(models.Model):
-    name = models.CharField(max_length=250)
+    name = models.CharField(max_length=250, unique=True)
     qty = models.CharField(max_length=250)
     unit = models.CharField(max_length=250)
     price = models.PositiveIntegerField()
-    description = models.CharField(max_length=250,null=True)
+    description = models.CharField(max_length=250, null=True)
+    Custom_material_id = models.CharField(max_length=6, unique=True, blank=True, editable=False)  # Assuming you want a 6-character material_id
+
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        # Convert the name to lowercase before saving
+        self.name = self.name.lower()
+
+        # Generate the Custom_material_id based on the first 2 letters of the name and the generated date
+        if not self.Custom_material_id:
+            Custom_material_id = self.name[:2] + datetime.now().strftime("%y%m%d%H%M%S")
+            self.Custom_material_id = Custom_material_id
+
+        super(Material, self).save(*args, **kwargs)
+
+    class Meta:
+        unique_together = ('name', 'Custom_material_id')
     
 class Tracker(models.Model):
     PAYMENT_CHOICES = (

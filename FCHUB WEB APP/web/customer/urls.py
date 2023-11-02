@@ -6,6 +6,7 @@ from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+
 app_name = 'customer'
 
 urlpatterns = [
@@ -17,13 +18,16 @@ urlpatterns = [
     path('profile/', views.profile, name='profile'),
     path('profile/edit-profile', views.edit_profile, name='edit-profile'),
     path('my-order', views.my_order_view,name='my-order'),
+    path('generate-invoice/<int:order_id>/', views.generate_invoice, name='generate_invoice'),
 
     path('cart/', views.cart_view, name='cart'),
     path('add-to-cart/<int:pk>/', views.add_to_cart_view, name='add-to-cart'),
     path('remove-from-cart/<int:pk>/', views.remove_from_cart_view, name='remove-from-cart'),
     path('clear-cart/', views.clear_cart_view, name='clear-cart'),
-    path('increase-quantity/<int:pk>/', views.increase_quantity_view, name='increase-quantity'),
-    path('decrease-quantity/<int:pk>/', views.decrease_quantity_view, name='decrease-quantity'),
+    path('delete-from-cart/<int:pk>/', views.delete_from_cart_view, name='delete-from-cart'),
+    path('cart/increase-quantity/<int:pk>/', views.increase_quantity_view, name='increase-quantity'),
+    path('cart/decrease-quantity/<int:pk>/', views.decrease_quantity_view, name='decrease-quantity'),
+
 
 
 

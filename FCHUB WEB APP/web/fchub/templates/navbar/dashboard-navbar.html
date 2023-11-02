@@ -14,8 +14,12 @@
     <link rel="stylesheet" href="{% static 'vendors/themify-icons/css/themify-icons.css' %}">
     <!-- Bootstrap + Steller  -->
     <link rel="stylesheet" type="text/css" href="{% static 'css/meyawo.css' %}">
+    
     <!-- CSS Bootstrap -->
     <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </head>
 <body data-spy="scroll" data-target=".navbar" data-offset="40" id="home">
     <!-- Page Navbar -->
@@ -29,22 +33,32 @@
                 <div class="collapse navbar-collapse" id="navbarSupportedContent">
                     <ul class="navbar-nav ml-auto"> 
                         <li class="nav-item">
-                            <a class="nav-link" href="{%url 'fchub:customers'%}">Customer</a>
+                            <a class="nav-link" href="{% url 'fchub:dashboard'%}">Dashboard</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'fchub:customers'%}">Customer</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'fchub:orders'  %}">View Orders</a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'fchub:products'  %}">Manage Products</a>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="productsDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                Products
+                            </a>
+                            <div class="dropdown-menu" aria-labelledby="productsDropdown">
+                                <a class="dropdown-item" href="{% url 'fchub:products'  %}">Manage Products</a>
+                                <a class="dropdown-item" href="{% url 'fchub:materials'  %}">Manage Materials</a>
+                                <a class="dropdown-item" href="{% url 'fchub:category'  %}">Manage Category</a>
+                            </div>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'fchub:materials'  %}">Manage Materials</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'fchub:track-purchase' %}">Manage Purchase Data</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'fchub:manage-business'%}">Manage Business</a>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="dataDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                Data
+                            </a>
+                            <div class="dropdown-menu" aria-labelledby="dataDropdown">
+                                <a class="dropdown-item" href="{% url 'fchub:track-purchase' %}">Manage Purchase Data</a>
+                                <a class="dropdown-item" href="{% url 'fchub:manage-business'%}">Manage Business</a>
+                            </div>
                         </li>
                         <li class="nav-item">
                             <a href="{% url 'fchub:logout' %}" class="ml-4 mt-1 btn btn-light btn-sm">Logout</a>

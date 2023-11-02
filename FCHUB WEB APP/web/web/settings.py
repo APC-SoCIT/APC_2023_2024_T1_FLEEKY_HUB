@@ -30,6 +30,7 @@ ALLOWED_HOSTS = []
 LOGIN_URL = 'customer:login'
 LOGIN_REDIRECT_URL = 'customer:home'
 LOGOUT_REDIRECT_URL = 'guest/'
+CRISPY_TEMPLATE_PACK = 'bootstrap4' 
 # Application definition
 
 INSTALLED_APPS = [
@@ -48,6 +49,7 @@ INSTALLED_APPS = [
 
     #Additional
     'clearcache',
+    'crispy_forms',
 
 
 ]

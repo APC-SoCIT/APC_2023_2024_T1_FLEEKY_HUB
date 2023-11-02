@@ -24,6 +24,7 @@
             <thead>
                 <tr>
                     <th>Product ID</th>
+                    <th>Stock</th> 
                     <th>Name</th>
                     <th>Image</th>
                     <th>Price</th>
@@ -37,6 +38,7 @@
             {% for product in products %}
             <tr>
                 <td>{{ product.custom_id }}</td>
+                <td>{{ product.stock }}</td>
                 <td>{{ product.name }}</td>
                 <td>
                     <img src="{{ product.product_image.url }}" alt="Product" class="img-thumbnail" width="100" />

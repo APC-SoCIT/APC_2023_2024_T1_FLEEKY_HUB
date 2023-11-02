@@ -6,10 +6,10 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.forms import UserCreationForm
 from matplotlib import category
 import requests
-
+from xhtml2pdf import pisa
 from fchub.models import Category, FleekyAdmin
-from .forms import CustomerEditForm, SignupForm, AddressEditForm ,CartForm, CartItemForm, OrderForm, PaymentForm, UserEditForm
-from .models import Cart, CartItem, Customer, Order, OrderItem, Payment
+from .forms import CustomerEditForm, CustomerProfileForm, SignupForm, AddressEditForm ,CartForm, CartItemForm, OrderForm, PaymentForm, UserEditForm
+from .models import Cart, CartItem, Customer, Order, OrderItem,  Payment
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.views import LoginView
 from django.utils.translation import gettext as _
@@ -20,7 +20,7 @@ from django.contrib.auth.models import AnonymousUser
 from django.forms import formset_factory, modelformset_factory
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import FileResponse, HttpResponse, HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import reverse
 from django.shortcuts import get_object_or_404
@@ -37,6 +37,16 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.core.cache import cache
 from django.contrib.auth import authenticate, login
+import io
+from django.http import FileResponse
+from django.shortcuts import get_object_or_404
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from django.views.generic import View
+from .models import Order
+from django.template.loader import get_template
+
+
 # Create your views here.
 
 def signup(request):
@@ -97,7 +107,8 @@ class CustomAuthenticationForm(AuthenticationForm):
         'inactive': _("This account is inactive."),
     }
 
-
+def is_customer(user):
+    return user.groups.filter(name='CUSTOMER').exists()
 class CustomLoginView(LoginView):
     template_name = 'registration/login.html'
 
@@ -109,22 +120,14 @@ class CustomLoginView(LoginView):
         if user is not None:
             login(self.request, user)
 
-            try:
-                customer = user.customer  # Access the related Customer object
-                if customer.is_customer:
-                    return redirect('customer:home')
-            except Customer.DoesNotExist:
-                pass
-
-            try:
-                admin = user.fleekyadmin  # Access the related FleekyAdmin object
-                if admin.is_admin:
-                    return redirect('fchub:dashboard')
-            except FleekyAdmin.DoesNotExist:
-                pass
+            if is_customer(user):
+                return redirect('customer:home')
+            elif user.is_staff:  # Check if user is an admin (staff)
+                return redirect('fchub:dashboard')
+            else:
+                return redirect('customer:home')  # Redirect to login page if not an admin or customer
 
         else:
-            messages.error(self.request, 'Invalid credentials')
             return super().form_invalid(form)
 
     
@@ -183,111 +186,65 @@ def profile(request):
 
 @login_required
 def edit_profile(request):
-    user = request.user
-    customer = user.customer  # Assuming you have a one-to-one relationship with Customer
-
+    customer = request.user.customer
     if request.method == 'POST':
-        user_form = UserEditForm(request.POST, instance=user)
-        customer_form = CustomerEditForm(request.POST, instance=customer)
-        address_form = AddressEditForm(request.POST, instance=customer.address)
-
-        if user_form.is_valid() and customer_form.is_valid() and address_form.is_valid():
-            user_form.save()
-            customer_form.save()
-            address_form.save()
-            return redirect('profile')  # Redirect to the profile page or any other page
+        form = CustomerProfileForm(request.POST, request.FILES, instance=customer)
+        if form.is_valid():
+            form.save()
+            return redirect('customer:profile')
     else:
-        user_form = UserEditForm(instance=user)
-        customer_form = CustomerEditForm(instance=customer)
-        address_form = AddressEditForm(instance=customer.address)
+        form = CustomerProfileForm(instance=customer)
+    
+    context = {'form': form}
+    return render(request, 'customer/edit-profile.html', context)
 
-    print(user_form)
-    print("hello there")
-
-    return render(request, 'customer/edit-profile.html', {
-        'user_form': user_form,
-        'customer_form': customer_form,
-        'address_form': address_form,
-    })
 # Cart Management Views
 @login_required
 def cart_view(request):
-    cart_items = CartItem.objects.filter(cart__customer=request.user.customer)
-    total = 0  # Initialize total to zero
-    quantity = 0  # Initialize quantity to zero
+    cart, _ = Cart.objects.get_or_create_cart(customer=request.user.customer)
+    cart_items = cart.cartitem_set.all()  # Access the Cart object in the tuple
+    total_price, total_quantity = cart.calculate_totals()
 
-    for cart_item in cart_items:
-        item_price = cart_item.product.price * cart_item.quantity  # Calculate item price
-        total += item_price  # Add item price to the total
-        quantity += cart_item.quantity  # Added quantity
-    total_price = total
-    print("total", total)
-    print("quantity", quantity)
-    return render(request, 'process/cart.html', {'cart_items': cart_items, 'total': total, 'quantity': quantity, 'total_price': total_price})  # Added quantity to the context dictionary
+    return render(request, 'process/cart.html', {
+        'cart_items': cart_items,
+        'total_price': total_price,
+        'total_quantity': total_quantity,
+        'cart': cart,
+    })
 
 @login_required
 def add_to_cart_view(request, pk):
-    # Retrieve the product
-    product = Product.objects.get(id=pk)
-    # Get the customer's cart
-    cart, created = Cart.objects.get_or_create(customer=request.user.customer)
-    # Check if the product is already in the cart
-    cart_item, created = CartItem.objects.get_or_create(cart=cart, product=product)
-    # If the item was created, set its quantity to 1, else, increment the quantity
-    if created:
-        cart_item.quantity = 1
-    else:
-        cart_item.quantity += 1
-    cart_item.save()
+    product = Product.objects.get(pk=pk)
+    customer = request.user.customer
+    cart, created = Cart.objects.get_or_create_cart(customer)
+    cart.add_to_cart(product)
 
-    # Update the cart totals
-    cart.update_totals()
-
-    # Inform the user that the product has been added to the cart
+    print(f'{product.name} added to the cart successfully!')  # Print to your server console
     messages.info(request, f'{product.name} added to the cart successfully!')
 
     return HttpResponseRedirect(reverse('customer:home'))
 
 @login_required
 def remove_from_cart_view(request, pk):
-    # Retrieve the product
-    product = Product.objects.get(id=pk)
+    product = Product.objects.get(pk=pk)
+    customer = request.user.customer
+    cart, _ = Cart.objects.get_or_create_cart(customer)
 
-    # Get the customer's cart
-    cart, created = Cart.objects.get_or_create(customer=request.user.customer)
-
-    # Check if the product is in the cart
     try:
-        cart_item = CartItem.objects.get(cart=cart, product=product)
-        if cart_item.quantity > 1:
-            cart_item.quantity -= 1
-            cart_item.save()
-        else:
-            cart_item.delete()
-
-        # Update the cart totals
-        cart.update_totals()
-
-        # Inform the user that the product has been removed from the cart
-        messages.info(request, f'{product.name} removed from the cart.')
+        cart_item = cart.cartitem_set.get(product=product)
+        cart_item.delete()  # Remove the cart item for the specific product
+        messages.info(request, f'{product.name} removed from the cart successfully!')
     except CartItem.DoesNotExist:
-        pass
+        messages.info(request, f'{product.name} is not in the cart.')
 
-    return HttpResponseRedirect(reverse('customer:cart'))
+    return redirect('customer:cart')
 
 @login_required
 def clear_cart_view(request):
-    # Get the customer's cart
-    cart, created = Cart.objects.get_or_create(customer=request.user.customer)
-
-    # Clear all items from the cart
-    cart_items = CartItem.objects.filter(cart=cart)
-    cart_items.delete()
-
-    # Inform the user that the cart has been cleared
-    messages.info(request, 'Cart has been cleared successfully!')
-
+    cart, created = Cart.objects.get_or_create_cart(customer=request.user.customer)
+    cart.clear_cart()
     return HttpResponseRedirect(reverse('customer:cart'))
+
 
 @login_required
 def delete_from_cart_view(request, pk):
@@ -295,76 +252,65 @@ def delete_from_cart_view(request, pk):
 
     # Check if the cart item belongs to the current user
     if cart_item.cart.customer.user != request.user:
-        # You might want to handle this case differently, e.g., return an error page
-        return redirect('cart')  # Redirect back to the cart page
+        return redirect('customer:cart')  # Redirect back to the cart page
 
-    # Delete the cart item
     cart_item.delete()
-
-    return redirect('cart')  # Redirect back to the cart page
+    return redirect('customer:cart')  # Redirect back to the cart page
 
 @login_required
 def increase_quantity_view(request, pk):
-    product_id = pk
-    # Perform the logic to increase the quantity for the given product
-    # Update the cart in the database
+    product = get_object_or_404(Product, pk=pk)
+    customer = request.user.customer
+    cart, created = Cart.objects.get_or_create_cart(customer)
+    cart_item, created = CartItem.objects.get_or_create(cart=cart, product=product)
+    cart_item.quantity += 1
+    cart_item.save()
+    cart.update_totals()
+    return HttpResponseRedirect(reverse('customer:cart'))
 
-    # After updating the cart, fetch the updated cart data
-    updated_cart_items = CartItem.objects.filter(cart__customer=request.user.customer)
-    total_price = calculate_total_price(updated_cart_items)
-
-    # Return updated cart data in JSON format
-    data = {
-        'cart_table': render_to_string('customer/cart_table.html', {'cart_items': updated_cart_items}),
-        'total_price': total_price,
-    }
-    return JsonResponse(data)
-
-# Replace this with your specific logic to update the quantity
+@login_required
 def decrease_quantity_view(request, pk):
-    product_id = pk
-    # Perform the logic to decrease the quantity for the given product
-    # Update the cart in the database
+    product = get_object_or_404(Product, pk=pk)
+    customer = request.user.customer
+    cart, created = Cart.objects.get_or_create_cart(customer)
+    cart_item, created = CartItem.objects.get_or_create(cart=cart, product=product)
 
-    # After updating the cart, fetch the updated cart data
-    updated_cart_items = CartItem.objects.filter(cart__customer=request.user.customer)
-    total_price = calculate_total_price(updated_cart_items)
+    if cart_item.quantity > 1:
+        cart_item.quantity -= 1
+        cart_item.save()
+        cart.update_totals()
 
-    # Return updated cart data in JSON format
-    data = {
-        'cart_table': render_to_string('customer/cart_table.html', {'cart_items': updated_cart_items}),
-        'total_price': total_price,
-    }
-    return JsonResponse(data)
+    else:
+        # If quantity is 1, remove the item from the cart
+        cart_item.delete()
 
-def calculate_total_price(cart_items):
-    # Calculate the total price based on the updated quantities of items
-    total_price = sum(item.quantity * item.product.price for item in cart_items)
-    return total_price
 
+    return HttpResponseRedirect(reverse('customer:cart'))
 
 
 @login_required
 def proceed_purchase_view(request):
     user = request.user
     customer = get_object_or_404(Customer, user=user)
-    customer_address = get_object_or_404(Address, customer=customer)  # Assuming you have an Address model
+    customer_address = get_object_or_404(Address, customer=customer)
 
-    # Retrieve the user's cart
-    cart, created = Cart.objects.get_or_create(customer=customer)
+    # Retrieve the user's cart, ensuring it's not a tuple
+    cart, created = Cart.objects.get_or_create_cart(customer=customer)
+
+    if created:
+        # If the cart was created in this request, you might want to handle it accordingly
+        pass
+
     cart_items = cart.cartitem_set.all()
 
-    total = cart.total_price  # Use the total price from the Cart model
-    quantity = cart.total_quantity  # Use the total quantity from the Cart model
-    
-    print(total)
-    print(quantity)
+    total = cart.total_price
+    quantity = cart.total_quantity
 
     # Calculate VAT and total with VAT
     vat_rate = Decimal('0.12')
     vat = total * vat_rate
     with_vat = total + vat
-
+    
     # Determine the shipping fee based on the region
     f_region = customer_address.region
     shipping_fee = 0
@@ -383,10 +329,8 @@ def proceed_purchase_view(request):
         shipping_fee = Decimal('400')
     elif f_region in regions_five:
         shipping_fee = Decimal('500')
-
     total_price = with_vat + shipping_fee
-    print(shipping_fee)
-    # Render the template without saving the order
+
     return render(request, 'process/proceed-purchase.html', {
         'shipping_fee': shipping_fee,
         'total_price': total_price,
@@ -394,29 +338,31 @@ def proceed_purchase_view(request):
         'with_vat': with_vat,
         'cart_items': cart_items,
         'total': total,
-        'quantity': quantity,  # Include quantity in the context
+        'quantity': quantity,
         'user': user,
         'customer': customer,
         'customer_address': customer_address,
-        'vat_rate':vat_rate,
+        'vat_rate': vat_rate,
     })
 
-@login_required
 @login_required
 def confirmation_cod_payment(request):
     user = request.user
     customer = get_object_or_404(Customer, user=user)
-    customer_address = get_object_or_404(Address, customer=customer)  # Assuming you have an Address model
+    customer_address = get_object_or_404(Address, customer=customer)
 
-    # Retrieve the user's cart
-    cart, created = Cart.objects.get_or_create(customer=customer)
+    # Retrieve the user's cart, ensuring it's not a tuple
+    cart, created = Cart.objects.get_or_create_cart(customer=customer)
+
+    if created:
+        # If the cart was created in this request, you might want to handle it accordingly
+        pass
+
+    # Assuming that you are using the correct attribute name "cartitem_set"
     cart_items = cart.cartitem_set.all()
 
-    total = cart.total_price  # Use the total price from the Cart model
-    quantity = cart.total_quantity  # Use the total quantity from the Cart model
-    
-    print(total)
-    print(quantity)
+    total = cart.total_price
+    quantity = cart.total_quantity
 
     # Calculate VAT and total with VAT
     vat_rate = Decimal('0.12')
@@ -444,7 +390,6 @@ def confirmation_cod_payment(request):
 
     total_price = with_vat + shipping_fee
 
-    # Render the template without saving the order
     return render(request, 'process/confirmation-cod-payment.html', {
         'shipping_fee': shipping_fee,
         'total_price': total_price,
@@ -452,13 +397,12 @@ def confirmation_cod_payment(request):
         'with_vat': with_vat,
         'cart_items': cart_items,
         'total': total,
-        'quantity': quantity,  # Include quantity in the context
+        'quantity': quantity,
         'user': user,
         'customer': customer,
         'customer_address': customer_address,
-        'vat_rate':vat_rate,
+        'vat_rate': vat_rate,
     })
-
 
 @login_required
 def success_cod_payment_view(request):
@@ -466,29 +410,35 @@ def success_cod_payment_view(request):
     customer = get_object_or_404(Customer, user=user)
     customer_address = get_object_or_404(Address, customer=customer)
 
-        # Retrieve the user's cart
-    cart, created = Cart.objects.get_or_create(customer=customer)
+    # Retrieve the user's cart, ensuring it's not a tuple
+    cart, created = Cart.objects.get_or_create_cart(customer=customer)
+
+    if created:
+        # If the cart was created in this request, you might want to handle it accordingly
+        pass
+
+    # Assuming that you are using the correct attribute name "cartitem_set"
     cart_items = cart.cartitem_set.all()
 
     total = cart.total_price
     quantity = cart.total_quantity
 
-        # Calculate VAT and total with VAT
+    # Calculate VAT and total with VAT
     vat_rate = Decimal('0.12')
     vat = total * vat_rate
     with_vat = total + vat
 
-        # Determine the shipping fee based on the region
+    # Determine the shipping fee based on the region
     f_region = customer_address.region
     shipping_fee = 0
     total_price = 0
 
     regions_three = ["National Capital Region (NCR)", "Region I (Ilocos Region)", "Region II (Cagayan Valley)",
-                         "Region III (Central Luzon)", "Region IV-A (CALABARZON)", "Region V (Bicol Region)"]
+                     "Region III (Central Luzon)", "Region IV-A (CALABARZON)", "Region V (Bicol Region)"]
     regions_four = ["Region VI (Western Visayas)", "Region VII (Central Visayas)", "Region VIII (Eastern Visayas)"]
     regions_five = ["Region IX (Zamboanga Peninsula)", "Region X (Northern Mindanao)",
-                        "Region XI (Davao Region)", "Region XII (SOCCSKSARGEN)", "Region XIII (Caraga)",
-                        "Cordillera Administrative Region (CAR)", "Autonomous Region in Muslim Mindanao (ARMM)"]
+                    "Region XI (Davao Region)", "Region XII (SOCCSKSARGEN)", "Region XIII (Caraga)",
+                    "Cordillera Administrative Region (CAR)", "Autonomous Region in Muslim Mindanao (ARMM)"]
 
     if f_region in regions_three:
         shipping_fee = Decimal('300')
@@ -499,47 +449,50 @@ def success_cod_payment_view(request):
 
     total_price = with_vat + shipping_fee
 
-        # Create an order
+    # Create an order
     order = Order.objects.create(
         status="Pending",
-        customer=customer,
+        customer=customer.user,  # Assuming "user" is the User instance
         shipping_address=customer_address,
         payment_method="Cash on Delivery (COD)",
         total_price=total_price,
         order_date=timezone.now(),
-        )
+    )
+
+    # Create order items based on cart items
+    order_items = []
     for cart_item in cart_items:
-            OrderItem.objects.create(
+        order_item = OrderItem.objects.create(
             order=order,
             product=cart_item.product,
             quantity=cart_item.quantity,
             item_total=cart_item.quantity * cart_item.product.price,
-            order_number=order.id  # You can customize this based on your order numbering logic
-            )
+        )
+        order_items.append(order_item)
 
-    cart_items.delete()
-    return render(request, 'process/success-cod-payment.html', {'order': order})
+    # Clear the cart
+    cart.clear_cart()
+
+    return render(request, 'process/success-cod-payment.html', {'order': order, 'order_items': order_items})
+
 
 
 # Updated online_payment_view
 @login_required
 def online_payment_view(request):
     # Your PayMongo API key (replace with your actual API key)
-    api_key = "Basic c2tfdGVzdF85b3ltdlhraDhncnBwWmpHQnhYeFpjVFU6QEZsZWVreWh1Yl8yMDIzIQ=="
+    api_key = "Basic c2tfdGVzdF85b3ltdlhraDhncrBwWmpHQnhYeFpjVFU6QEZsZWVreWh1Yl8yMDIzIQ=="
 
-    user = User.objects.get(id=request.user.id)
+    user = request.user
     customer = get_object_or_404(Customer, user=user)
     customer_address = get_object_or_404(Address, customer=customer)
-    cart = Cart.objects.get(customer=customer)  # Use Cart model
 
-    # Check if there are products in the cart
-    cart_items = CartItem.objects.filter(cart=cart)
-    product_count_in_cart = len(cart_items)
-    product_in_cart = product_count_in_cart > 0
+    # Retrieve the user's cart using the Cart model
+    cart = Cart.objects.get_or_create_cart(customer=customer)
+    cart_items = cart.cartitem_set.all()
 
-    # Calculate the total price and quantity based on products in the cart
-    total = cart.total_price  # Use the total price from the Cart model
-    quantity = cart.total_quantity  # Use the total quantity from the Cart model
+    total = cart.total_price
+    quantity = cart.total_quantity
 
     # Calculate VAT and total with VAT
     vat_rate = Decimal('0.12')
@@ -622,8 +575,8 @@ def online_payment_view(request):
                 "send_email_receipt": False,  # Set to False
                 "show_description": True,
                 "show_line_items": True,
-                "cancel_url": request.build_absolute_uri('/customer/proceed-purchase/'),  # Cancel URL
-                "success_url": request.build_absolute_uri('/customer/home'),  # Add Success URL
+                "cancel_url": reverse('customer:proceed_purchase'),  # Cancel URL
+                "success_url": reverse('customer:home'),  # Success URL
                 "description": "Order Description",
                 "line_items": line_items,
                 "payment_method_types": ["gcash", "grab_pay", "paymaya"]  # Add payment method types
@@ -658,20 +611,27 @@ def online_payment_view(request):
                 total_price=total_price,  # Use the calculated total price
                 order_date=timezone.now(),  # Include the current date and time
             )
-                        # Create OrderProduct instances for each product in the cart
+
+            # Create OrderProduct instances for each product in the cart
             for cart_item in cart_items:
-                CartItem.objects.create(cart=cart, product=cart_item.product, quantity=cart_item.quantity)
+                OrderItem.objects.create(
+                    order=order,
+                    product=cart_item.product,
+                    quantity=cart_item.quantity,
+                    item_total=cart_item.quantity * cart_item.product.price,
+                )
+
             # Clear the cart after a successful payment
             cart_items.delete()
 
-            return response
-            # Redirect the user to the checkout URL
+            return response  # Redirect the user to the checkout URL
 
         else:
             # Payment session creation failed
             error_message = response.json().get("errors", "Payment session creation failed")
             # Handle the error as needed, e.g., return an error response
             return JsonResponse({"error": error_message}, status=400)
+
     except requests.exceptions.RequestException as e:
         # Handle network or request-related errors
         return JsonResponse({"error": str(e)}, status=500)
@@ -685,7 +645,82 @@ def online_payment_view(request):
 @login_required
 def my_order_view(request):
     user = request.user
-    orders = Order.objects.filter(customer__user=user).order_by('-order_date')
+    orders = Order.objects.filter(customer=user).order_by('-order_date')
+
 
     # Render a template and pass the orders as context
     return render(request, 'customer/my-order.html', {'orders': orders})
+
+
+def render_to_pdf(template_path, context_dict):
+    template = get_template(template_path)
+    html = template.render(context_dict)
+    result = io.BytesIO()
+    pdf = pisa.pisaDocument(io.BytesIO(html.encode("UTF-8")), result)
+    if not pdf.err:
+        return result.getvalue()
+    return None
+
+def generate_invoice(request, order_id):
+    # Fetch the order with the given order_id
+    order = Order.objects.get(id=order_id)
+
+    # Retrieve related customer, address, and order items
+    customer = order.customer
+    shipping_address = order.shipping_address
+    order_items = order.order_items.all()
+
+    # Calculate the total price for the order
+    total_price = sum(item.item_total for item in order_items)
+
+    # Access the user-related fields from the customer's profile
+    customer_profile = Customer.objects.get(user=request.user)
+    customer_address = get_object_or_404(Address, customer=customer_profile)
+
+    # Calculate VAT and total with VAT
+    vat_rate = Decimal('0.12')
+    vat = total_price * vat_rate
+    with_vat = total_price + vat
+
+    # Determine the shipping fee based on the region
+    f_region = customer_address.region
+    shipping_fee = 0
+
+    regions_three = ["National Capital Region (NCR)", "Region I (Ilocos Region)", "Region II (Cagayan Valley)",
+                     "Region III (Central Luzon)", "Region IV-A (CALABARZON)", "Region V (Bicol Region)"]
+    regions_four = ["Region VI (Western Visayas)", "Region VII (Central Visayas)", "Region VIII (Eastern Visayas)"]
+    regions_five = ["Region IX (Zamboanga Peninsula)", "Region X (Northern Mindanao)",
+                    "Region XI (Davao Region)", "Region XII (SOCCSKSARGEN)", "Region XIII (Caraga)",
+                    "Cordillera Administrative Region (CAR)", "Autonomous Region in Muslim Mindanao (ARMM)"]
+
+    if f_region in regions_three:
+        shipping_fee = Decimal('300')
+    elif f_region in regions_four:
+        shipping_fee = Decimal('400')
+    elif f_region in regions_five:
+        shipping_fee = Decimal('500')
+
+    # Calculate the total price including VAT and shipping fee
+    total_price = with_vat + shipping_fee
+
+    # Define context data to pass to the template
+    context = {
+        'customer': customer,
+        'customer_profile': customer_profile,
+        'shipping_address': shipping_address,
+        'order': order,
+        'order_items': order_items,
+        'total_price': total_price,
+        'vat': vat,
+        'with_vat': with_vat,
+        'shipping_fee': shipping_fee,
+    }
+
+    # Render the HTML template as a PDF
+    pdf = render_to_pdf('process/download-invoice.html', context)
+    if pdf:
+        response = HttpResponse(pdf, content_type='application/pdf')
+        response['Content-Disposition'] = 'filename="invoice.pdf"'
+        return response
+
+    return HttpResponse("Error rendering PDF", status=500)

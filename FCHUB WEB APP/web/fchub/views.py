@@ -1,5 +1,7 @@
+
 from io import TextIOWrapper
 import io
+from django.db.models import F, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.core.cache import cache
 from django.contrib.auth import logout
@@ -7,30 +9,39 @@ from django.contrib.auth.decorators import login_required
 from django.urls import reverse_lazy
 from customer.models import Customer, Order, Product, OrderItem
 from .models import CsvData, Material, FleekyAdmin, Category, Tracker, User
-from .forms import  CsvUploadForm, FleekyAdminForm, MaterialForm, ProductForm, TrackerForm
+from .forms import  CategoryForm, CsvUploadForm, FleekyAdminForm, MaterialForm, ProductForm, TrackerForm
 from django.contrib.auth.forms import UserCreationForm
 from .models import Csv  # Make sure you have this import
 import csv
 from .models import CsvData
 from django.contrib import messages
 import os
+from django.db.models import Q
 from django.core.exceptions import ValidationError
+from datetime import datetime
 # Create your views here.
 def dashboard(request):
-    active = request.user.fleekyadmin
+    try:
+        active = request.user.fleekyadmin
+    except FleekyAdmin.DoesNotExist:
+        active = None  # Handle the case when FleekyAdmin is missing
     
     # Calculate the counts
     order_count = Order.objects.count()
     product_count = Product.objects.count()
-    customer_count = User.objects.count()
     
+    # Count only customers
+    customer_count = Customer.objects.count()
+    
+    print(customer_count)
+
     # Calculate the count of pending orders
     pending_order_count = Order.objects.filter(status='Pending').count()
 
     recent_orders = Order.objects.all().order_by('-order_date')[:5]
 
     context = {
-        'active':active,
+        'active': active,
         'customer_count': customer_count,
         'product_count': product_count,
         'order_count': order_count,
@@ -46,9 +57,9 @@ def fchub_logout(request):
 
 
 def view_customer(request):
-    customers = Customer.objects.all()
-    addresses = [customer.address for customer in customers if customer.address is not None]
-    return render(request, 'view/customers.html', {'customers': customers, 'addresses': addresses})
+    customers = Customer.objects.all()   
+    return render(request, 'view/customers.html', {'customers': customers})
+
 
 def view_order(request):
     # Get filter parameters from the request
@@ -57,32 +68,40 @@ def view_order(request):
     total_price_filter = request.GET.get('total_price')
     payment_type_filter = request.GET.get('payment_type')
 
-    # Query orders based on filter parameters
+    # Start with an initial queryset of all orders
     orders = Order.objects.all()
 
+    # Apply filters based on user input
     if order_date_filter:
+        # Assuming 'order_date' is a DateField in the Order model
         orders = orders.filter(order_date=order_date_filter)
 
     if order_status_filter:
+        # Assuming 'status' is a field in the Order model
         orders = orders.filter(status=order_status_filter)
 
     if total_price_filter == "low_to_high":
+        # Assuming 'total_price' is a field in the Order model
         orders = orders.order_by('total_price')
     elif total_price_filter == "high_to_low":
         orders = orders.order_by('-total_price')
 
     if payment_type_filter:
+        # Assuming 'payment_method' is a field in the Order model
         if payment_type_filter == 'Online_Payment':
             orders = orders.filter(payment_method='Online Payment')
         elif payment_type_filter == 'cash_on_delivery':
             orders = orders.filter(payment_method='Cash on Delivery')
 
+    # Annotate each order with the sum of total item prices
+    orders = orders.annotate(total_item_price=Sum(F('order_items__item_total')))
+
     data = []
 
     for order in orders:
-        ordered_products = OrderItem.objects.filter(order=order)
-        ordered_by = Customer.objects.filter(id=order.customer.id)
-        data.append((ordered_products, ordered_by, order))
+        ordered_items = order.order_items.all()
+        ordered_by = order.customer
+        data.append((ordered_items, ordered_by, order))
 
     return render(request, 'view/orders.html', {'data': data})
 
@@ -134,8 +153,52 @@ def edit_product(request, pk):
     return render(request, 'edit/edit-product.html', {'form': form})
 
 
+def add_category(request):
+    if request.method == 'POST':
+        form = CategoryForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('fchub:category')
+    else:
+        form = CategoryForm()
+    return render(request, 'add/add-category.html', {'form': form})
 
+def edit_category(request, category_id):
+    category = Category.objects.get(id=category_id)
+    if request.method == 'POST':
+        form = CategoryForm(request.POST, instance=category)
+        if form.is_valid():
+            form.save()
+            return redirect('fchub:category')
+    else:
+        form = CategoryForm(instance=category)
+    return render(request, 'edit/edit-category.html', {'form': form, 'category': category})
 
+def delete_category(request, category_id):
+    category = Category.objects.get(id=category_id)
+    category.delete()
+    return redirect('fchub:category')
+
+def category_list(request):
+    categories = Category.objects.all()
+    fabric_choices = Category.FABRIC_CHOICES
+    set_type_choices = Category.SET_TYPE_CHOICES
+
+    fabric_filter = request.GET.get('fabric')
+    set_type_filter = request.GET.get('set_type')
+
+    if fabric_filter:
+        categories = categories.filter(fabric=fabric_filter)
+    if set_type_filter:
+        categories = categories.filter(setType=set_type_filter)
+
+    return render(request, 'view/category.html', {
+        'categories': categories,
+        'fabric_choices': fabric_choices,
+        'set_type_choices': set_type_choices,
+        'selected_fabric': fabric_filter,
+        'selected_set_type': set_type_filter,
+    })
 
 
 
@@ -147,11 +210,23 @@ def add_material(request):
     if request.method == 'POST':
         form = MaterialForm(request.POST)
         if form.is_valid():
-            form.save()
-            print("Material saved successfully")  # Add a print statement for debugging
-            return redirect('fchub:materials')
+            name = form.cleaned_data['name'].lower()
+            custom_material_id = name[:2] + datetime.now().strftime("%y%m%d%H")
+            if Material.objects.filter(name=name).exists() or Material.objects.filter(Custom_material_id=custom_material_id).exists():
+                # Display an error message if the material name or custom_material_id already exists (case-insensitive)
+                messages.error(request, 'Material with this name or custom material ID already exists.')
+            else:
+                material = form.save(commit=False)
+                material.name = name
+                material.Custom_material_id = custom_material_id
+                material.save()
+                # Display a success message
+                messages.success(request, 'Material saved successfully.')
+                return redirect('fchub:materials')
         else:
-            print("Form is not valid")  # Add a print statement for debugging
+            # Display an error message if the form is not valid
+            messages.error(request, 'Form is not valid.')
+
     else:
         form = MaterialForm()
 
@@ -261,7 +336,10 @@ def delete_purchase(request, purchase_id):
 
 
 def view_manage_business(request):
-    active = request.user.fleekyadmin
+    try:
+        active = request.user.fleekyadmin
+    except FleekyAdmin.DoesNotExist:
+        active = None  # Handle the case when FleekyAdmin is missing
     return render(request,'manage-business/manage-business.html', {'active':active})
 
 def parse_csv_data(csv_file):
@@ -333,13 +411,17 @@ def upload_csv(request):
 
     # Fetch the most recent CSV entry
     most_recent_csv = Csv.objects.order_by('-uploaded_at').first()
-    
-    # Parse the most recent CSV data (assuming it's a CSV string) into a list of lists
-    most_recent_csv.csv_data = parse_csv_data(most_recent_csv.csv_file)
-    
+
+    # Check if there is no uploaded file
+    if not most_recent_csv:
+        messages.info(request, 'Please upload a CSV file first.')  # Add this message
+    else:
+        # Parse the most recent CSV data (assuming it's a CSV string) into a list of lists
+        most_recent_csv.csv_data = parse_csv_data(most_recent_csv.csv_file)
+
     recent_csv_files = Csv.objects.order_by('-uploaded_at')[:5]
 
-    return render(request, 'manage-business/csv-template.html', {'form': form,'recent_csv_files':recent_csv_files ,'csv_files': csv_files, 'most_recent_csv': most_recent_csv})
+    return render(request, 'manage-business/csv-template.html', {'form': form, 'recent_csv_files': recent_csv_files, 'csv_files': csv_files, 'most_recent_csv': most_recent_csv})
 
 def delete_csv(request):
     if request.method == 'POST':

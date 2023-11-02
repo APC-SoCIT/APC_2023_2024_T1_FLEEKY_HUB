@@ -138,10 +138,13 @@
                                   </div>
                                 <div class="d-flex justify-content-between align-items-center">
                                     <span class="price">₱ {{ p.price }}</span>
-                                    <a href="{% url 'customer:add-to-cart' p.id  %}?next_page={{ request.path }}"
-                                        class="btn btn-primary">
-                                        <i class="fa fa-shopping-cart"></i> Add To Cart
-                                    </a>
+                                    <div class="add-to-cart-button-wrapper">
+                                        <a href="{% url 'customer:add-to-cart' p.id  %}?next_page={{ request.path }}"
+                                            class="btn btn-primary add-to-cart-button">
+                                            <i class="fa fa-shopping-cart"></i> Add To Cart
+                                        </a>
+                                    </div>
+                                    
                                 </div>
                             </div>
                         </div>
@@ -160,25 +163,6 @@
         Product added to cart!
     </div>
 </div>
-<script>
-    // Show cart notification when a product is added
-    const cartNotification = document.getElementById('cart-notification');
-    {% if messages %}
-    {% for message in messages %}
-    alert('{{ message }}');
-    cartNotification.style.display = 'block';
-    setTimeout(() => {
-        cartNotification.style display = 'none';
-    }, 3000); // Hide after 3 seconds
-    {% endfor %}
-    {% endif %}
-
-    // Function to toggle the pop-out effect on image click
-    function togglePopOut(image) {
-        image.closest('.card').classList.toggle('pop-out');
-    }
-    
-</script>
 <script>
     // Show cart notification when a product is added
     const cartNotification = document.getElementById('cart-notification');

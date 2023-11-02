@@ -21,7 +21,7 @@ class Customer(models.Model):
     email = models.EmailField()
     phone_number = models.CharField(max_length=30)
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
-    address = models.OneToOneField('Address', on_delete=models.SET_NULL, null=True, blank=True, related_name='customer_addresses')
+    address = models.ForeignKey('Address', on_delete=models.SET_NULL, null=True, blank=True, related_name='customer_addresses')
     profile_pic = models.ImageField(
         upload_to='customers/static/customer_profile_pic',
         null=True,
@@ -82,13 +82,17 @@ class Address(models.Model):
     class Meta:
         verbose_name = "Address"
 
-
+class CartManager(models.Manager):
+    def get_or_create_cart(self, customer):
+        cart, created = self.get_or_create(customer=customer)
+        return cart, created
 
 class Cart(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    items = models.ManyToManyField(Product, through='CartItem')
     total_quantity = models.PositiveIntegerField(default=0)
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    objects = CartManager()  
 
     def __str__(self):
         return self.customer.user.username + "'s Cart"
@@ -106,6 +110,50 @@ class Cart(models.Model):
         self.total_quantity = total_quantity
         self.save()
 
+    def add_to_cart(self, product):
+        # Check if the product is already in the cart
+        cart_item, created = CartItem.objects.get_or_create(cart=self, product=product)
+        
+        # If the item was created, set its quantity to 1, else, increment the quantity
+        if created:
+            cart_item.quantity = 1
+        else:
+            cart_item.quantity += 1
+        
+        cart_item.save()
+        self.update_totals()
+
+    def calculate_totals(self):
+        total_price = 0
+        total_quantity = 0
+
+        for cart_item in self.cartitem_set.all():
+            cart_item.calculate_item_total()  # Calculate item total for each cart item
+            total_price += cart_item.item_total
+            total_quantity += cart_item.quantity
+
+        return total_price, total_quantity
+
+    def remove_from_cart(self, product):
+        try:
+            cart_item = self.cartitem_set.get(product=product)
+            if cart_item.quantity > 1:
+                cart_item.quantity -= 1
+                cart_item.save()
+            else:
+                cart_item.delete()
+            self.update_totals()
+        except CartItem.DoesNotExist:
+            pass  # Handle the case where the product is not in the cart
+        
+    def clear_cart(self):
+        # Remove all cart items associated with this cart
+        self.cartitem_set.all().delete()
+        # Reset total_quantity and total_price to zero
+        self.total_quantity = 0
+        self.total_price = 0
+        self.save()
+
 class CartItem(models.Model):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
@@ -115,6 +163,17 @@ class CartItem(models.Model):
     def calculate_item_total(self):
         self.item_total = self.quantity * self.product.price
         self.save()
+
+    class Meta:
+        unique_together = ['cart', 'product']
+
+    @classmethod
+    def update_cart_quantity(cls, cart, product, quantity):
+        cart_item, created = cls.objects.get_or_create(cart=cart, product=product)
+        cart_item.quantity = quantity
+        cart_item.save()
+
+        cart.update_totals()
 
 
 
@@ -131,34 +190,34 @@ class Order(models.Model):
         ("COD", "COD"),
     )
 
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    order_date = models.DateTimeField(auto_now_add=True)  # Ensure this field is correctly defined
+    customer = models.ForeignKey(User, on_delete=models.CASCADE)
+    order_date = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Pending")
     shipping_address = models.ForeignKey(Address, on_delete=models.CASCADE)
     payment_method = models.CharField(max_length=50, choices=PAYMENT_CHOICES)
     total_price = models.DecimalField(max_digits=30, decimal_places=2)
     order_number = models.CharField(max_length=15, unique=True)
-    order_date = models.DateTimeField(auto_now_add=True) 
+    products = models.ManyToManyField(Product)
+
     def __str__(self):
         return self.order_number
     
     def generate_order_number(self):
-        order_date = self.order_date.strftime('%Y%m%d')
-        random_string = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
-        first_letter_payment = self.payment_method[0].upper()
-        self.order_number = f'{order_date}-{first_letter_payment}{self.customer.user.id}-{random_string}'
+        if not self.order_number:
+            order_date = self.order_date.strftime('%Y%m%d')
+            random_string = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
+            first_letter_payment = self.payment_method[0].upper()
+            self.order_number = f'{order_date}-{first_letter_payment}{self.customer.id}-{random_string}'
 
     def save(self, *args, **kwargs):
-        if not self.order_number:
-            self.generate_order_number()
+        self.generate_order_number()
         super().save(*args, **kwargs)
 
 class OrderItem(models.Model):
-    order = models.ForeignKey(Order, on_delete=models.CASCADE)
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
     item_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    order_number = models.CharField(max_length=15)  # Add this field
 
     def save(self, *args, **kwargs):
         self.calculate_item_total()  # Calculate item total before saving
@@ -168,7 +227,7 @@ class OrderItem(models.Model):
         self.item_total = self.quantity * self.product.price
 
     def __str__(self):
-        return f"{self.product.name} in Order {self.order_number}"
+        return f"{self.product.name} in Order {self.order.order_number}"
 
 
 
