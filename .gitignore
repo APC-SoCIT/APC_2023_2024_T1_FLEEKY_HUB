@@ -1,8 +1,6 @@
 # Ignore Python bytecode cache directories
 __pycache/
 
-.cfg
-
 # Ignore compiled Python files
 *.pyc
 *.pyo
@@ -12,7 +10,6 @@ __pycache/
 
 # Ignore log files
 *.log
-
 
 # Ignore environment variable configuration files (e.g., .env files)
 *.env
@@ -43,8 +40,3 @@ local_settings.py
 
 # Ignore coverage report files if using a code coverage tool
 .coverage
-
-# Ignore compiled Python files
-*.py[cod]
-
-

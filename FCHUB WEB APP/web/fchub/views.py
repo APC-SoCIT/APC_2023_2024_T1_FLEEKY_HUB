@@ -4,7 +4,7 @@ from decimal import Decimal
 from io import TextIOWrapper
 import io
 from django.db.models import F, Sum
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.core.cache import cache
 from django.contrib.auth import logout
@@ -24,7 +24,8 @@ from django.core.exceptions import ValidationError
 from datetime import datetime
 from xhtml2pdf import pisa
 from django.template.loader import get_template
-
+import logging
+from django.db import transaction
 # Create your views here.
 
 @login_required
@@ -657,25 +658,26 @@ def upload_csv(request):
                 messages.error(request, f'Unsupported file type: {file_extension}. Please upload a valid file.')
                 return redirect('fchub:upload-csv')
 
-            # Create a Csv object and save it with a unique name
-            csv = Csv(csv_file=csv_file)
-            csv.save()
+            try:
+                # Read the CSV content from the file
+                csv_content = csv_file.read().decode('utf-8')
 
-            # Rename the file with a unique name
-            csv.file_name = f'csv-{csv.id}-{csv.uploaded_at.strftime("%Y%m%d")}'
-            csv.save()
+                # Create a Csv object and save it with a unique name
+                csv = Csv(csv_file=csv_file)
+                csv.save()
 
-            # Add a success message
-            messages.success(request, 'CSV file uploaded successfully.')
+                # Rename the file with a unique name
+                csv.file_name = f'csv-{csv.id}-{csv.uploaded_at.strftime("%Y%m%d")}'
+                csv.save()
 
-            return redirect('fchub:upload-csv')
+                # Add a success message
+                messages.success(request, 'CSV file uploaded successfully.')
+            except Exception as e:
+                # Handle any exceptions that may occur during parsing
+                # You can log the error or raise an appropriate exception
+                messages.error(request, 'Error processing the uploaded CSV file.')
 
-        else:
-            # Add an error message
-            messages.error(request, 'Error uploading CSV file. Please check the file format.')
-
-    else:
-        form = CsvUploadForm()
+    form = CsvUploadForm()
 
     # Get all uploaded CSV files
     csv_files = Csv.objects.all()
@@ -694,14 +696,13 @@ def upload_csv(request):
 
     return render(request, 'manage-business/csv-template.html', {'form': form, 'recent_csv_files': recent_csv_files, 'csv_files': csv_files, 'most_recent_csv': most_recent_csv})
 
-
 def delete_csv(request):
     if request.method == 'POST':
         file_id = request.POST.get('file_id')
         try:
             csv_file = Csv.objects.get(id=file_id)
-            # Delete the CSV file from your storage (if needed)
-            csv_file.csv_file.delete()
+            if not csv_file.csv_file.closed:
+                csv_file.csv_file.close()  # Close the file if it's open
             # Delete the Csv object from the database
             csv_file.delete()
         except Csv.DoesNotExist:
@@ -711,7 +712,99 @@ def delete_csv(request):
     return redirect('fchub:upload-csv')  # Redirect to the page where CSV files are listed
 
 
+def parse_csv_for_migration(csv_content):
+    # Create a list to store the CSV data
+    data = []
 
+    # Create a CSV reader
+    csv_reader = csv.reader(io.StringIO(csv_content))
+
+    # Skip the header row (if present)
+    next(csv_reader, None)
+
+    for row in csv_reader:
+        data.append(row)
+
+    return data
+
+def migrate_csv_data(csv_data):
+    try:
+        # Iterate through the rows and create CsvData objects
+        for row in csv_data:
+            CsvData.objects.create(
+                year=row[0],
+                month=row[1],
+                day=row[2],
+                location=row[3],
+                customerName=row[4],
+                fabric=row[5],
+                setType=row[6],
+                color=row[7],
+                quantity=row[8],
+                count=row[9],
+                price=row[10]
+            )
+
+    except Exception as e:
+        # Handle any exceptions that may occur during migration
+        print(f"Error during migration: {str(e)}")
+
+def migrate_csv(request, csv_id):
+    # Retrieve the Csv object with the provided ID
+    csv = get_object_or_404(Csv, id=csv_id)
+
+    # Ensure that csv.csv_file is a string by reading its content
+    csv_content = csv.csv_file.read().decode('utf-8')
+
+    # Parse the CSV content into a list of lists
+    csv_data = parse_csv_for_migration(csv_content)
+
+    if isinstance(csv_data, list):
+        # Migrate CSV data to CsvData model
+        migrate_csv_data(csv_data)
+
+        # Redirect to the main CSV upload page with a success message
+        messages.success(request, 'CSV data migrated to the database.')
+        return redirect('fchub:upload-csv')
+    else:
+        # Handle the case where parse_csv_for_migration returned something other than a list
+        return HttpResponseBadRequest('Invalid CSV data format')
+
+def view_csv(request, file_id):
+    # Fetch the CSV file from the database
+    csv_file = get_object_or_404(Csv, id=file_id)
+
+    # Parse the CSV file content
+    csv_data = []
+    try:
+        csv_text = csv_file.csv_data
+        csv_reader = csv.reader(csv_text.splitlines())
+        for row in csv_reader:
+            csv_data.append(row)
+    except Exception as e:
+        # Handle any exceptions (e.g., invalid CSV format)
+        pass  # You should create an error template
+
+    return render(request, 'csv-template.html', {'csv_data': csv_data, 'most_recent_csv': None})
+
+
+
+def get_csv_data(request, file_id):
+    try:
+        # Retrieve the CSV file with the specified file_id
+        csv_file = get_object_or_404(Csv, id=file_id)
+
+        # Read the content from the csv_file field
+        with open(csv_file.csv_file.path, 'rb') as file:
+            csv_data = file.read()
+
+        # You can customize the response content type based on your CSV data format
+        response = HttpResponse(csv_data, content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="{csv_file.file_name}.csv"'
+        return response
+    except Csv.DoesNotExist:
+        # Handle the case where the CSV file does not exist
+        return HttpResponse("CSV file not found.", status=404)
 
 
 @login_required

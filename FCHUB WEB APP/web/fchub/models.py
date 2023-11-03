@@ -203,6 +203,7 @@ class CsvData(models.Model):
     day = models.IntegerField()
     location = models.CharField(max_length=100)
     customerName = models.CharField(max_length=100)
+    fabric = models.CharField(max_length=100)
     setType = models.CharField(max_length=20)
     color = models.CharField(max_length=20)
     quantity = models.IntegerField()

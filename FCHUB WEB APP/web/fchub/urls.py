@@ -52,6 +52,14 @@ urlpatterns = [
 
     path('upload-csv', views.upload_csv, name='upload-csv'),
     path('delete-csv/', views.delete_csv, name='delete-csv'),
+    path('migrate-csv/<int:csv_id>/', views.migrate_csv, name='migrate-csv'),
+    path('get-csv-data/<int:file_id>/', views.get_csv_data, name='get-csv-data'),
+
+
+
+
+
+
 
     path('successful-orders/', views.successful_orders, name='successful-orders'),
     path('download-successful-orders-csv/', views.download_successful_orders_csv, name='download-successful-orders-csv'),
