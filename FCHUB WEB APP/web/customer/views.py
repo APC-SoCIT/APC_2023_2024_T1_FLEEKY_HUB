@@ -653,7 +653,7 @@ def my_order_view(request):
     # Render a template and pass the orders as context
     return render(request, 'customer/my-order.html', {'orders': orders})
 
-
+@login_required
 def render_to_pdf(template_path, context_dict):
     template = get_template(template_path)
     html = template.render(context_dict)
@@ -663,6 +663,7 @@ def render_to_pdf(template_path, context_dict):
         return result.getvalue()
     return None
 
+@login_required
 def generate_invoice(request, order_id):
     # Fetch the order with the given order_id
     order = Order.objects.get(id=order_id)

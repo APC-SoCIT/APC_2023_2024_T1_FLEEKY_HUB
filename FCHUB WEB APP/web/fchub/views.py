@@ -27,7 +27,7 @@ from django.template.loader import get_template
 
 # Create your views here.
 
-
+@login_required
 def dashboard(request):
     # Calculate the counts
     customer_count = Customer.objects.count()
@@ -63,12 +63,12 @@ def fchub_logout(request):
     cache.clear()  # Clear the cache for all users
     return redirect('guest:index')
 
-
+@login_required
 def view_customer(request):
     customers = Customer.objects.all()   
     return render(request, 'view/customers.html', {'customers': customers})
 
-
+@login_required
 def view_order(request):
     # Get filter parameters from the request
     order_date_filter = request.GET.get('order_date')
@@ -127,6 +127,7 @@ def view_order(request):
 
     return render(request, 'view/orders.html', {'data': data, 'status_choices': STATUS_CHOICES})
 
+
 def calculate_count(setType, qty):
     # Define a dictionary to map set_type to its multiplier
     set_type_multipliers = {
@@ -140,6 +141,8 @@ def calculate_count(setType, qty):
     multiplier = set_type_multipliers.get(setType, 1)  # Default to 1 if set_type is not recognized
     return multiplier * qty
 
+
+@login_required
 def update_status(request, order_id):
     # Get the order object based on the order_id
     order = Order.objects.get(id=order_id)
@@ -211,6 +214,7 @@ def update_status(request, order_id):
     return render(request, 'update/update-status.html', {'order': order, 'status_choices': Order.STATUS_CHOICES})
 
 
+@login_required
 def render_to_pdf(template_path, context_dict):
     template = get_template(template_path)
     html = template.render(context_dict)
@@ -220,6 +224,7 @@ def render_to_pdf(template_path, context_dict):
         return result.getvalue()
     return None
 
+@login_required
 def generate_invoice(request, order_id):
     # Ensure the user is an admin or has the necessary permissions
     if not request.user.is_staff:
@@ -288,6 +293,7 @@ def generate_invoice(request, order_id):
 
     return HttpResponse("Error rendering PDF", status=500)
 
+@login_required
 def view_full_details(request, order_id):
     # Ensure the user is an admin or has the necessary permissions
     if not request.user.is_staff:
@@ -386,6 +392,8 @@ def delete_product(request, pk):
     
     return render(request, 'delete/delete-product.html', {'product': product})
 
+
+@login_required
 def edit_product(request, pk):
     product = get_object_or_404(Product, pk=pk)
 
@@ -400,6 +408,7 @@ def edit_product(request, pk):
     return render(request, 'edit/edit-product.html', {'form': form})
 
 
+@login_required
 def add_category(request):
     if request.method == 'POST':
         form = CategoryForm(request.POST)
@@ -410,6 +419,8 @@ def add_category(request):
         form = CategoryForm()
     return render(request, 'add/add-category.html', {'form': form})
 
+
+@login_required
 def edit_category(request, category_id):
     category = Category.objects.get(id=category_id)
     if request.method == 'POST':
@@ -421,11 +432,13 @@ def edit_category(request, category_id):
         form = CategoryForm(instance=category)
     return render(request, 'edit/edit-category.html', {'form': form, 'category': category})
 
+@login_required
 def delete_category(request, category_id):
     category = Category.objects.get(id=category_id)
     category.delete()
     return redirect('fchub:category')
 
+@login_required
 def category_list(request):
     categories = Category.objects.all()
     fabric_choices = Category.FABRIC_CHOICES
@@ -448,11 +461,12 @@ def category_list(request):
     })
 
 
-
+@login_required
 def view_materials(request):
     materials=Material.objects.all()
     return render(request,'view/materials.html',{'materials':materials})
 
+@login_required
 def add_material(request):
     if request.method == 'POST':
         form = MaterialForm(request.POST)
@@ -479,6 +493,8 @@ def add_material(request):
 
     return render(request, 'add/add-material.html', {'form': form})
 
+
+@login_required
 def delete_material(request, pk):
     material = get_object_or_404(Material, id=pk)
     
@@ -488,6 +504,8 @@ def delete_material(request, pk):
     
     return render(request, 'delete/delete-material.html', {'material': material})
 
+
+@login_required
 def edit_material(request, material_id):
     material = Material.objects.get(id=material_id)
 
@@ -503,7 +521,7 @@ def edit_material(request, material_id):
 
 
 
-
+@login_required
 def view_purchase(request):
     fabric_type = request.GET.get('fabric_type')
     payment = request.GET.get('payment')
@@ -542,7 +560,9 @@ def view_purchase(request):
 
     return render(request, 'view/track-purchase.html', {'purchases': purchases})
 
+
 # Add a new purchase record
+@login_required
 def add_purchase(request):
     if request.method == 'POST':
         form = TrackerForm(request.POST)
@@ -554,6 +574,7 @@ def add_purchase(request):
     return render(request, 'add/add-purchase.html', {'form': form})
 
 # Edit an existing purchase record
+@login_required
 def edit_purchase(request, purchase_id):
     purchase = Tracker.objects.get(id=purchase_id)
     if request.method == 'POST':
@@ -566,6 +587,7 @@ def edit_purchase(request, purchase_id):
     return render(request, 'edit/edit-purchase.html', {'form': form, 'purchase': purchase})
 
 # Delete a purchase record
+@login_required
 def delete_purchase(request, purchase_id):
     purchase = Tracker.objects.get(id=purchase_id)
     
@@ -581,7 +603,7 @@ def delete_purchase(request, purchase_id):
 
 
 
-
+@login_required
 def view_manage_business(request):
     try:
         active = request.user.fleekyadmin
@@ -589,6 +611,7 @@ def view_manage_business(request):
         active = None  # Handle the case when FleekyAdmin is missing
     return render(request,'manage-business/manage-business.html', {'active':active})
 
+@login_required
 def parse_csv_data(csv_file):
     csv_data = []
 
@@ -620,6 +643,7 @@ def parse_csv_data(csv_file):
 
 ALLOWED_EXTENSIONS = {'.xlsx', '.xls', '.xlsm', '.xlsb', '.xltx', '.xltm', '.xlam', '.csv', '.ods', '.xml', '.txt', '.prn', '.dif', '.slk', '.htm', '.html', '.dbf', '.json'}
 
+@login_required
 def upload_csv(request):
     if request.method == 'POST':
         form = CsvUploadForm(request.POST, request.FILES)
@@ -670,6 +694,7 @@ def upload_csv(request):
 
     return render(request, 'manage-business/csv-template.html', {'form': form, 'recent_csv_files': recent_csv_files, 'csv_files': csv_files, 'most_recent_csv': most_recent_csv})
 
+@login_required
 def delete_csv(request):
     if request.method == 'POST':
         file_id = request.POST.get('file_id')
@@ -689,12 +714,12 @@ def delete_csv(request):
 
 
 
-
+@login_required
 def users_admins(request):
     admins = FleekyAdmin.objects.all()
     return render(request, 'view/users-admin.html', {'admins': admins})
 
-
+@login_required
 def add_admin(request):
     if request.method == 'POST':
         # Create instances of UserCreationForm and FleekyAdminForm
@@ -717,16 +742,20 @@ def add_admin(request):
     
     return render(request, 'add/user-admin.html', {'user_form': user_form, 'admin_form': admin_form})
 
+@login_required
 def delete_admin(request, pk):
     admin = get_object_or_404(FleekyAdmin, pk=pk)
     admin.delete()
     return redirect('fchub:users-admins')  # Redirect to the list of admins after deleting
 
 
+@login_required
 def successful_orders(request):
     successful_orders = SuccessfulOrder.objects.all()
     return render(request, 'view/successful-orders.html', {'successful_orders': successful_orders})
 
+
+@login_required
 def download_successful_orders_csv(request):
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="successful_orders.csv"'
