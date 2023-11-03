@@ -214,7 +214,7 @@ def update_status(request, order_id):
     return render(request, 'update/update-status.html', {'order': order, 'status_choices': Order.STATUS_CHOICES})
 
 
-@login_required
+
 def render_to_pdf(template_path, context_dict):
     template = get_template(template_path)
     html = template.render(context_dict)
@@ -224,7 +224,7 @@ def render_to_pdf(template_path, context_dict):
         return result.getvalue()
     return None
 
-@login_required
+
 def generate_invoice(request, order_id):
     # Ensure the user is an admin or has the necessary permissions
     if not request.user.is_staff:
@@ -611,7 +611,7 @@ def view_manage_business(request):
         active = None  # Handle the case when FleekyAdmin is missing
     return render(request,'manage-business/manage-business.html', {'active':active})
 
-@login_required
+
 def parse_csv_data(csv_file):
     csv_data = []
 
@@ -643,7 +643,7 @@ def parse_csv_data(csv_file):
 
 ALLOWED_EXTENSIONS = {'.xlsx', '.xls', '.xlsm', '.xlsb', '.xltx', '.xltm', '.xlam', '.csv', '.ods', '.xml', '.txt', '.prn', '.dif', '.slk', '.htm', '.html', '.dbf', '.json'}
 
-@login_required
+
 def upload_csv(request):
     if request.method == 'POST':
         form = CsvUploadForm(request.POST, request.FILES)
@@ -694,7 +694,7 @@ def upload_csv(request):
 
     return render(request, 'manage-business/csv-template.html', {'form': form, 'recent_csv_files': recent_csv_files, 'csv_files': csv_files, 'most_recent_csv': most_recent_csv})
 
-@login_required
+
 def delete_csv(request):
     if request.method == 'POST':
         file_id = request.POST.get('file_id')
