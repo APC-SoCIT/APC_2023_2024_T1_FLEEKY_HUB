@@ -1,4 +1,5 @@
 
+import calendar
 from decimal import Decimal
 from io import TextIOWrapper
 import io
@@ -10,7 +11,7 @@ from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse_lazy
 from customer.models import Address, Customer, Order, Product, OrderItem
-from .models import CsvData, Material, FleekyAdmin, Category, Tracker, User
+from .models import CsvData, Material, FleekyAdmin, Category, SuccessfulOrder, Tracker, User
 from .forms import  CategoryForm, CsvUploadForm, FleekyAdminForm, MaterialForm, ProductForm, TrackerForm
 from django.contrib.auth.forms import UserCreationForm
 from .models import Csv  # Make sure you have this import
@@ -71,14 +72,20 @@ def view_customer(request):
 def view_order(request):
     # Get filter parameters from the request
     order_date_filter = request.GET.get('order_date')
-    order_status_filter = request.GET.get('order_status')  # Updated filter parameter
+    order_status_filter = request.GET.get('order_status')
     total_price_filter = request.GET.get('total_price')
     payment_type_filter = request.GET.get('payment_type')
+    order_id_filter = request.GET.get('order_id')  # New filter parameter for Order ID
 
     # Start with an initial queryset of all orders
     orders = Order.objects.all()
-    STATUS_CHOICES = Order.STATUS_CHOICES 
+    STATUS_CHOICES = Order.STATUS_CHOICES
+
     # Apply filters based on user input
+    if order_id_filter:  # Check if the filter parameter is not empty
+        # Filter orders where the order ID matches the input Order ID
+        orders = orders.filter(order_number=order_id_filter)
+
     if order_date_filter:
         try:
             # Assuming 'order_date' is a DateField in the Order model
@@ -120,9 +127,26 @@ def view_order(request):
 
     return render(request, 'view/orders.html', {'data': data, 'status_choices': STATUS_CHOICES})
 
+def calculate_count(setType, qty):
+    # Define a dictionary to map set_type to its multiplier
+    set_type_multipliers = {
+        'Singles': 1,
+        '3 in 1': 3,
+        '4 in 1': 4,
+        '5 in 1': 5,
+    }
+
+    # Calculate the count based on set_type and qty
+    multiplier = set_type_multipliers.get(setType, 1)  # Default to 1 if set_type is not recognized
+    return multiplier * qty
+
 def update_status(request, order_id):
     # Get the order object based on the order_id
     order = Order.objects.get(id=order_id)
+    customer_profile = Customer.objects.get(user=order.customer)
+    fname = customer_profile.first_name
+    lname = customer_profile.last_name
+    customer_name = fname + " " + lname
 
     # Check if the request method is POST
     if request.method == 'POST':
@@ -131,6 +155,54 @@ def update_status(request, order_id):
         # Update the order status
         order.status = new_status
         order.save()
+
+        # Check if the new status is "Delivered"
+        if new_status == 'Delivered':
+            # Check if a SuccessfulOrder with the same success_order_id already exists
+            existing_successful_order = SuccessfulOrder.objects.filter(success_order_id=order.order_number).first()
+
+            if existing_successful_order:
+                # Prompt the user that it's already marked as delivered
+                return render(request, 'update/already-delivered.html', {'order': order})
+
+            # Retrieve additional information from related objects
+            customer = order.customer
+            address = order.shipping_address
+            order_items = order.order_items.all()  # Retrieve all order items in the order
+
+            # Aggregate fabric, setType, and color information from all products
+            fabrics = ", ".join(order_item.product.category.fabric for order_item in order_items)
+            setType = ", ".join(order_item.product.category.setType for order_item in order_items)
+            colors = ", ".join(order_item.product.color for order_item in order_items)
+
+            # Calculate the count based on set_type and qty for the ordered products
+            total_count = sum(order_item.quantity for order_item in order_items)
+            total_count_for_set_type = sum(calculate_count(order_item.product.category.setType, order_item.quantity) for order_item in order_items)
+
+            # Calculate the price as the total_price of the order
+            total_price = order.total_price
+
+            # Create a SuccessfulOrder instance
+            successful_order = SuccessfulOrder(
+                order_number=order.order_number,
+                date=order.order_date.date(),
+                location=address.city + ", " + address.province,
+                name=customer_name,
+                fabric=fabrics,
+                setType=setType,
+                color=colors,
+                qty=total_count,  # Quantity of each product
+                count=total_count_for_set_type,  # Total count based on set type and quantity
+                price=total_price
+            )
+
+            # Generate the success_order_id without foreign key relationship
+            last_5_order_number = order.order_number[-5:]
+            customer_name = customer.first_name[:3]
+            username = customer.username[:3]
+            location = address.detailed_address[:3]
+            successful_order.success_order_id = f'SuccessfulOrder-{last_5_order_number}-{customer_name}-{username}-{location}'
+            successful_order.save()
 
         # Redirect back to the 'update-status' view with the updated order_id
         return redirect('fchub:orders')
@@ -651,3 +723,23 @@ def delete_admin(request, pk):
     return redirect('fchub:users-admins')  # Redirect to the list of admins after deleting
 
 
+def successful_orders(request):
+    successful_orders = SuccessfulOrder.objects.all()
+    return render(request, 'view/successful-orders.html', {'successful_orders': successful_orders})
+
+def download_successful_orders_csv(request):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="successful_orders.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(['Year', 'Month', 'Day', 'Location', 'Name', 'Fabric', 'Set', 'Color', 'Qty', 'Count', 'Price'])
+
+    successful_orders = SuccessfulOrder.objects.all()
+
+    for order in successful_orders:
+        year = order.date.year
+        month = calendar.month_name[order.date.month]  # Convert month to string
+        day = order.date.day
+        writer.writerow([year, month, day, order.location, order.name, order.fabric, order.setType, order.color, order.qty, order.count, order.price])
+
+    return response

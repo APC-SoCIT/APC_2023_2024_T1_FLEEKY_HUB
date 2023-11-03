@@ -53,6 +53,9 @@ urlpatterns = [
     path('upload-csv', views.upload_csv, name='upload-csv'),
     path('delete-csv/', views.delete_csv, name='delete-csv'),
 
+    path('successful-orders/', views.successful_orders, name='successful-orders'),
+    path('download-successful-orders-csv/', views.download_successful_orders_csv, name='download-successful-orders-csv'),
+
 
 ]
 if settings.DEBUG:

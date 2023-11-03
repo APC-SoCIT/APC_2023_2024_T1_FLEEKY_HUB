@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.utils.dates import MONTHS
 from django.db.models import Max
 
+
 class FleekyAdmin(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     first_name = models.CharField('First Name', max_length=50)
@@ -211,4 +212,35 @@ class CsvData(models.Model):
     def __str__(self):
         return self.customerName
 
+class SuccessfulOrder(models.Model):
+    order_number = models.CharField(max_length=100)
+    success_order_id = models.CharField(max_length=20, unique=True)  # Add a field for the generated ID
+    date = models.DateField()
+    location = models.CharField(max_length=100)
+    name = models.CharField(max_length=250)
+    fabric = models.CharField(max_length=250)
+    setType = models.CharField(max_length=100)
+    color = models.CharField(max_length=100)
+    qty = models.PositiveIntegerField()
+    count = models.PositiveIntegerField()
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"Successful Order for {self.name}"
+
+    def generate_success_order_id(self):
+        # Extract information from related Order
+        order_number = self.order_number
+        customer_name = self.order.customer.first_name[:3]
+        username = self.order.customer.username[:3]
+        location = self.location[:3]
+
+        # Generate the success_order_id
+        last_5_order_number = order_number[-5:]
+        self.success_order_id = f'SuccessfulOrder-{last_5_order_number}-{customer_name}-{username}-{location}'
+
+    def save(self, *args, **kwargs):
+        if not self.success_order_id:
+            self.generate_success_order_id()
+        super().save(*args, **kwargs)
 

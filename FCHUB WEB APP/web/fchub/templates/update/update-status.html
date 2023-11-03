@@ -52,6 +52,22 @@
         margin-top: 20px;
         cursor: pointer;
     }
+
+    .back-button {
+        background-color: #ccc;
+        color: #6f42c1;
+        border: none;
+        border-radius: 5px;
+        padding: 10px 20px;
+        font-size: 16px;
+        text-decoration: none;
+        display: inline-block;
+        margin-top: 20px;
+        cursor: pointer;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+    }
 </style>
 
 <div class="change-status-container">
@@ -59,17 +75,21 @@
     <p class="order-info"><span class="status-label">Order ID:</span> {{ order.id }}</p>
     <p class="order-info"><span class="status-label">Current Status:</span> {{ order.get_status_display }}</p>
 
-    <form method="post">
-        {% csrf_token %}
-        <label for="new_status" class="select-status">Select New Status:</label>
-        <select name="new_status" id="new_status">
-            {% for choice in order.STATUS_CHOICES %}
-                <option value="{{ choice.0 }}">{{ choice.1 }}</option>
-            {% endfor %}
-        </select>
-        <br>
-        <input type="submit" value="Change Status" class="submit-button">
-    </form>
+    {% if order.status == 'Delivered' %}
+        <p class="status-description">This order has already been marked as delivered.</p>
+    {% else %}
+        <form method="post">
+            {% csrf_token %}
+            <label for="new_status" class="select-status">Select New Status:</label>
+            <select name="new_status" id="new_status">
+                {% for choice in order.STATUS_CHOICES %}
+                    <option value="{{ choice.0 }}">{{ choice.1 }}</option>
+                {% endfor %}
+            </select>
+            <br>
+            <input type="submit" value="Change Status" class="submit-button">
+        </form>
+    {% endif %}
 
     <p class="status-description">
         {% if order.status == 'Pending' %}
@@ -84,5 +104,7 @@
             Unknown status.
         {% endif %}
     </p>
+
+    <a href="{% url 'fchub:orders' %}" class="back-button">Back to Orders</a>
 </div>
 {% endblock %}
