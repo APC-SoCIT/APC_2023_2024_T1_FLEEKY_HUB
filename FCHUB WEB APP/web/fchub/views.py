@@ -4,14 +4,14 @@ from decimal import Decimal
 from io import TextIOWrapper
 import io
 from django.db.models import F, Sum
-from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.core.cache import cache
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from customer.models import Address, Customer, Order, Product, OrderItem
-from .models import CsvData, Material, FleekyAdmin, Category, SuccessfulOrder, Tracker, User
+from .models import CsvData, Material, FleekyAdmin, Category, SalesForCategory, SalesForColor, SalesForFabric, SalesForLocation, SalesForWebData, SuccessfulOrder, Tracker, User
 from .forms import  CategoryForm, CsvUploadForm, FleekyAdminForm, MaterialForm, ProductForm, TrackerForm
 from django.contrib.auth.forms import UserCreationForm
 from .models import Csv  # Make sure you have this import
@@ -529,7 +529,7 @@ def view_purchase(request):
     price = request.GET.get('price')
     color = request.GET.get('color')
     product_tag = request.GET.get('product_tag')
-    set_tag = request.GET.get('set_tag')
+    setType = request.GET.get('setType')
     month_of_purchase = request.GET.get('month_of_purchase')
     qty = request.GET.get('qty')
     count = request.GET.get('count')
@@ -548,8 +548,8 @@ def view_purchase(request):
         purchases = purchases.filter(color=color)
     if product_tag:
         purchases = purchases.filter(product_tag=product_tag)
-    if set_tag:
-        purchases = purchases.filter(set_tag=set_tag)
+    if setType:
+        purchases = purchases.filter(setType=setType)
     if month_of_purchase:
         purchases = purchases.filter(month_of_purchase=month_of_purchase)
     if qty:
@@ -865,3 +865,251 @@ def download_successful_orders_csv(request):
         writer.writerow([year, month, day, order.location, order.name, order.fabric, order.setType, order.color, order.qty, order.count, order.price])
 
     return response
+
+
+
+
+MONTH_MAPPING = {
+    'January': '01',
+    'February': '02',
+    'March': '03',
+    'April': '04',
+    'May': '05',
+    'June': '06',
+    'July': '07',
+    'August': '08',
+    'September': '09',
+    'October': '10',
+    'November': '11',
+    'December': '12',
+}
+@login_required
+def view_fchub_model(request):
+    combined_data = SalesForWebData.objects.all()
+    purchase_data = Tracker.objects.all()
+    successful_orders = SuccessfulOrder.objects.all()
+    
+    # Add the following lines to retrieve data for the new models
+    sales_for_fabric_data = SalesForFabric.objects.all()
+    sales_for_category_data = SalesForCategory.objects.all()
+    sales_for_location_data = SalesForLocation.objects.all()
+    sales_for_color_data = SalesForColor.objects.all()
+
+    parsed_combined_data = []
+
+    for data in combined_data:
+        if data.date:
+            date_obj = datetime.strptime(data.date, "%Y-%m-%d")
+            data.date = date_obj.strftime("%B")  # Update the 'date' field to the month
+
+        # Split fabric, color, and set types if they contain multiple values
+        fabrics = data.fabric_type.split(', ')
+        colors = data.color.split(', ')
+        set_types = data.set_type.split(', ')
+
+        # Create separate rows for each combination
+        for fabric in fabrics:
+            for color in colors:
+                for set_type in set_types:
+                    parsed_data = SalesForWebData()
+                    parsed_data.fabric_type = fabric
+                    parsed_data.date = data.date  # Use the updated 'date' field
+                    parsed_data.color = color
+                    parsed_data.set_type = set_type
+                    parsed_data.price = data.price
+                    parsed_combined_data.append(parsed_data)
+
+    context = {
+        'parsed_combined_data': parsed_combined_data,
+        'purchase_data': purchase_data,
+        'successful_orders': successful_orders,
+        'sales_for_fabric_data': sales_for_fabric_data,
+        'sales_for_category_data': sales_for_category_data,
+        'sales_for_location_data': sales_for_location_data,
+        'sales_for_color_data': sales_for_color_data,
+    }
+
+    return render(request, 'manage-business/fchub-data-model.html', context)
+
+
+
+
+
+def migrate_fchub_data(request):
+    try:
+        combined_data = []
+
+        # Retrieve data from the SuccessfulOrder and Tracker models
+        successful_orders = SuccessfulOrder.objects.all()
+        tracker_data = Tracker.objects.all()
+
+        # Iterate through SuccessfulOrder data
+        for order in successful_orders:
+            # For each SuccessfulOrder, create a SalesForWebData instance
+            sales_data = SalesForWebData()
+            sales_data.fabric_type = order.fabric
+            sales_data.date = order.date
+            sales_data.color = order.color
+            sales_data.set_type = order.setType
+            sales_data.price = order.price
+
+
+            # Add the instance to the combined_data list
+            combined_data.append(sales_data)
+
+ 
+        # Iterate through Tracker data
+        for data in tracker_data:
+            # For each Tracker data, create a SalesForWebData instance
+            sales_data = SalesForWebData()
+            sales_data.fabric_type = data.fabric_type
+            sales_data.location = data.month_of_purchase
+            sales_data.color = data.color
+            sales_data.set_type = data.setType
+            sales_data.price = data.price
+
+            # Add the instance to the combined_data list
+            combined_data.append(sales_data)
+
+        # Save the combined data to the SalesForWebData model
+        SalesForWebData.objects.bulk_create(combined_data)
+
+
+        messages.success(request, 'Combined data migrated successfully.')
+    except Exception as e:
+        messages.error(request, f'Error: {e}')
+
+    # Redirect to the 'fchub-data-model' view
+    return HttpResponseRedirect(reverse('fchub:fchub-data-model'))
+
+
+def delete_all_data(request):
+    # Delete all records from the SalesForWebData model
+    SalesForWebData.objects.all().delete()
+
+    return redirect('fchub:fchub-data-model')
+
+
+
+def migrate_fabric_data(request):
+    try:
+        combined_fabric = []
+
+        combined_data = SalesForWebData.objects.all()
+
+        # Iterate through SalesForWebData data
+        for data in combined_data:
+            # For each SalesForWebData instance, create a SalesForFabric instance
+            sales_data = SalesForFabric()
+            sales_data.fabric = data.fabric_type  # Correct the field name to 'fabric'
+            sales_data.date = data.date
+            sales_data.price = data.price
+
+            # Save the instance to the combined_fabric list
+            sales_data.save()
+            combined_fabric.append(sales_data)
+
+        messages.success(request, 'Combined data migrated successfully.')
+    except Exception as e:
+        messages.error(request, f'Error: {e}')
+
+    # Redirect to the 'fchub-data-model' view
+    return HttpResponseRedirect(reverse('fchub:fchub-data-model'))
+
+
+def migrate_category_data(request):
+    try:
+        combined_category = []
+
+        combined_data = SalesForWebData.objects.all()
+
+        # Iterate through SalesForCategory data
+        for data in combined_data:
+            # For each SalesForCategory instance, create a SalesForFabric instance
+            sales_data = SalesForCategory()
+            sales_data.set_tag = data.set_type
+            sales_data.date = data.date
+            sales_data.price = data.price
+
+            # Save the instance to the combined_fabric list
+            sales_data.save()
+            combined_category.append(sales_data)
+
+        messages.success(request, 'Category data migrated successfully.')
+    except Exception as e:
+        messages.error(request, f'Error: {e}')
+
+    # Redirect to the 'fchub-data-model' view (or update this as needed)
+    return HttpResponseRedirect(reverse('fchub:fchub-data-model'))
+
+
+def migrate_location_data(request):
+    try:
+        combined_location = []
+
+        # Retrieve data from the SuccessfulOrder and CsvData models
+        successful_orders = SuccessfulOrder.objects.all()
+        csv_data = CsvData.objects.all()
+
+        # Iterate through SuccessfulOrder data
+        for order in successful_orders:
+            # For each SuccessfulOrder, create a SalesForLocation instance
+            sales_data = SalesForLocation()
+            sales_data.date = order.date
+            sales_data.fabric = order.fabric
+            sales_data.set_type = order.setType
+            sales_data.location = order.location
+            sales_data.price = order.price
+
+            # Add the instance to the combined_location list
+            sales_data.save()
+            combined_location.append(sales_data)
+
+        # Iterate through CsvData
+        for data in csv_data:
+            # For each CsvData entry, create a SalesForLocation instance
+            sales_data = SalesForLocation()
+            sales_data.date = f"{data.year}-{data.month}-{data.day}"  # Adjust date format
+            sales_data.fabric = data.fabric
+            sales_data.set_type = data.setType
+            sales_data.location = data.location
+            sales_data.price = data.price
+
+            # Add the instance to the combined_location list
+            sales_data.save()
+            combined_location.append(sales_data)
+
+        messages.success(request, 'Location data migrated successfully.')
+    except Exception as e:
+        messages.error(request, f'Error: {e}')
+
+    # Redirect to the view you want (adjust the name accordingly)
+    return HttpResponseRedirect(reverse('fchub:fchub-data-model'))
+
+
+def migrate_color_data(request):
+    try:
+        combined_color = []
+
+        # Retrieve data from the SuccessfulOrder model
+        successful_orders = SuccessfulOrder.objects.all()
+
+        # Iterate through SuccessfulOrder data
+        for order in successful_orders:
+            # For each SuccessfulOrder, create a SalesForColor instance
+            sales_data = SalesForColor()
+            sales_data.location = order.location
+            sales_data.color = order.color
+            sales_data.date = order.date
+            sales_data.price = order.price
+
+            # Add the instance to the combined_color list
+            sales_data.save()
+            combined_color.append(sales_data)
+
+        messages.success(request, 'Color data migrated successfully.')
+    except Exception as e:
+        messages.error(request, f'Error: {e}')
+
+    # Redirect to the view you want (adjust the name accordingly)
+    return HttpResponseRedirect(reverse('fchub:fchub-data-model'))

@@ -40,3 +40,9 @@ local_settings.py
 
 # Ignore coverage report files if using a code coverage tool
 .coverage
+
+
+./migrations
+*./migrations
+/migrations
+

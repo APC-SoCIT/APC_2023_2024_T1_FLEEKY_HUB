@@ -55,14 +55,19 @@ urlpatterns = [
     path('migrate-csv/<int:csv_id>/', views.migrate_csv, name='migrate-csv'),
     path('get-csv-data/<int:file_id>/', views.get_csv_data, name='get-csv-data'),
 
-
-
-
-
-
-
     path('successful-orders/', views.successful_orders, name='successful-orders'),
     path('download-successful-orders-csv/', views.download_successful_orders_csv, name='download-successful-orders-csv'),
+
+    path('fchub-data-model', views.view_fchub_model, name='fchub-data-model'),
+    path('fchub/migrate-fchub-data/', views.migrate_fchub_data, name='migrate-fchub-data'),
+    path('delete-all-data/', views.delete_all_data, name='delete-all-data'),
+
+    path('fchub/migrate-fabric-data/', views.migrate_fabric_data, name='migrate-fabric-data'),
+    path('migrate-category-data/', views.migrate_category_data, name='migrate-category-data'),
+    path('migrate-location-data/', views.migrate_location_data, name='migrate-location-data'),
+    path('migrate-color-data/', views.migrate_color_data, name='migrate-color-data'),
+
+
 
 
 ]

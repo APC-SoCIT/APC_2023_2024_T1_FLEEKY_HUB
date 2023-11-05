@@ -187,7 +187,7 @@ class Tracker(models.Model):
     price = models.PositiveIntegerField(null=True)
     color = models.CharField(max_length=250, null=True)
     product_tag = models.SmallIntegerField(choices=PRODUCT_TAG_CHOICES)
-    set_tag = models.CharField(max_length=250, choices=SET_CHOICES, null=True)
+    setType = models.CharField(max_length=250, choices=SET_CHOICES, null=True)
     month_of_purchase = models.PositiveSmallIntegerField(null=True, choices=MONTHS)
     qty = models.PositiveIntegerField(null=True)
     count = models.PositiveIntegerField(null=True)
@@ -245,3 +245,36 @@ class SuccessfulOrder(models.Model):
             self.generate_success_order_id()
         super().save(*args, **kwargs)
 
+
+class SalesForWebData(models.Model):
+    fabric_type = models.CharField(max_length=250, null=True)
+    date = models.CharField(max_length=100)
+    color = models.CharField(max_length=250, null=True)
+    set_type = models.CharField(max_length=250, null=True)
+    price = models.PositiveIntegerField(null=True)
+
+
+class SalesForFabric(models.Model):
+    date = models.DateField()
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    fabric = models.CharField(max_length=250)
+    
+class SalesForCategory(models.Model):
+    date = models.DateField()
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    set_tag = models.CharField(max_length=250)
+
+
+class SalesForLocation(models.Model):
+    date = models.DateField()
+    fabric = models.CharField(max_length=250)
+    set_type = models.CharField(max_length=250)
+    location = models.CharField(max_length=100)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+
+
+class SalesForColor(models.Model):
+    location = models.CharField(max_length=100)
+    color = models.CharField(max_length=100)
+    date = models.DateField()
+    price = models.DecimalField(max_digits=10, decimal_places=2)
