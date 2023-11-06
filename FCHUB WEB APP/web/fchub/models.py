@@ -248,20 +248,17 @@ class SuccessfulOrder(models.Model):
 
 class SalesForWebData(models.Model):
     fabric_type = models.CharField(max_length=250, null=True)
-    date = models.CharField(max_length=100)
     color = models.CharField(max_length=250, null=True)
     set_type = models.CharField(max_length=250, null=True)
-    price = models.PositiveIntegerField(null=True)
+    date = models.DateField()
 
 
 class SalesForFabric(models.Model):
     date = models.DateField()
-    price = models.DecimalField(max_digits=10, decimal_places=2)
     fabric = models.CharField(max_length=250)
     
 class SalesForCategory(models.Model):
     date = models.DateField()
-    price = models.DecimalField(max_digits=10, decimal_places=2)
     set_tag = models.CharField(max_length=250)
 
 
@@ -270,11 +267,11 @@ class SalesForLocation(models.Model):
     fabric = models.CharField(max_length=250)
     set_type = models.CharField(max_length=250)
     location = models.CharField(max_length=100)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
+
 
 
 class SalesForColor(models.Model):
-    location = models.CharField(max_length=100)
+    fabric = models.CharField(max_length=100)
     color = models.CharField(max_length=100)
     date = models.DateField()
-    price = models.DecimalField(max_digits=10, decimal_places=2)
+

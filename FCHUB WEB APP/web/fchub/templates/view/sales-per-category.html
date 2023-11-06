@@ -1,0 +1,18 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sales for Category</title>
+    <style>
+        /* Add your custom CSS styles here for the design */
+    </style>
+</head>
+<body>
+    <h1>Sales for Category</h1>
+    <ul>
+        {% for sale in sales %}
+            <li>{{ sale.date }} - {{ sale.set_tag }}</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

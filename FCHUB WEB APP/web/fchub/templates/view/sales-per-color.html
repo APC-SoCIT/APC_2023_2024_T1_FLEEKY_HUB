@@ -1,0 +1,31 @@
+<!-- sales_for_color/templates/sales_for_color/sales_for_color_list.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sales for Color</title>
+    <style>
+        /* Add your custom CSS styles here for the design */
+    </style>
+</head>
+<body>
+    <h1>Sales for Color</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Fabric</th>
+                <th>Color</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sale in sales %}
+                <tr>
+                    <td>{{ sale.fabric }}</td>
+                    <td>{{ sale.color }}</td>
+                    <td>{{ sale.date }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

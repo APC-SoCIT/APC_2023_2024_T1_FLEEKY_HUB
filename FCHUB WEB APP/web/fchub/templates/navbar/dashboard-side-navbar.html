@@ -39,16 +39,16 @@
                             <a class="nav-link" href="{%url 'fchub:fchub-data-model' %}">ADD WITHIN FCHUB MODEL</a>
                         </nav>
                         <nav class="sb-sidenav-menu-nested nav">
-                            <a class="nav-link" href="layout-static.html">View SALES PER PRODUCT</a>
+                            <a class="nav-link" href="{% url 'fchub:sales-for-fabric-list' %}">View SALES PER PRODUCT</a>
                         </nav>
                         <nav class="sb-sidenav-menu-nested nav">
-                            <a class="nav-link" href="layout-static.html">View SALES PER CATEGORY</a>
+                            <a class="nav-link" href="{% url 'fchub:sales-for-category-list'%}">View SALES PER CATEGORY</a>
                         </nav>
                         <nav class="sb-sidenav-menu-nested nav">
-                            <a class="nav-link" href="layout-static.html">View SALES PER COLOR</a>
+                            <a class="nav-link" href="{% url 'fchub:sales-for-color-list'%}">View SALES PER COLOR</a>
                         </nav>
                         <nav class="sb-sidenav-menu-nested nav">
-                            <a class="nav-link" href="layout-static.html">View SALES PER LOCATION</a>
+                            <a class="nav-link" href="{% url 'fchub:sales-for-location-list'%}">View SALES PER LOCATION</a>
                         </nav>
                     </div>
                     <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseLayoutsSelling" aria-expanded="false" aria-controls="collapseLayoutsSelling">

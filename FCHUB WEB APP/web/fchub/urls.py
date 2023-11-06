@@ -61,6 +61,14 @@ urlpatterns = [
     path('fchub-data-model', views.view_fchub_model, name='fchub-data-model'),
     path('fchub/migrate-fchub-data/', views.migrate_fchub_data, name='migrate-fchub-data'),
     path('delete-all-data/', views.delete_all_data, name='delete-all-data'),
+    path('delete-fabric-data/', views.delete_fabrics_data, name='delete-fabric-data'),
+    path('delete-setType-data/', views.delete_setType_data, name='delete-setType-data'),
+    path('delete-color-data/', views.delete_color_data, name='delete-color-data'),
+    path('delete-location-data/', views.delete_location_data, name='delete-location-data'),
+
+
+
+
 
     path('fchub/migrate-fabric-data/', views.migrate_fabric_data, name='migrate-fabric-data'),
     path('migrate-category-data/', views.migrate_category_data, name='migrate-category-data'),
@@ -68,7 +76,10 @@ urlpatterns = [
     path('migrate-color-data/', views.migrate_color_data, name='migrate-color-data'),
 
 
-
+    path('sales/', views.sales_for_fabric_list, name='sales-for-fabric-list'),
+    path('sales-for-category/', views.sales_for_category_list, name='sales-for-category-list'),
+    path('sales-for-location/', views.sales_for_location_list, name='sales-for-location-list'),
+    path('sales-for-color/', views.sales_for_color_list, name='sales-for-color-list'),
 
 ]
 if settings.DEBUG:

@@ -3,7 +3,7 @@
 <div class="container">
     <h1>Combine Data Within FCHUB Website</h1>
     <!-- Include Bootstrap CSS -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" >
     <div class="row">
         <!-- New Container (On Top) -->
         <div class="col-md-12">
@@ -129,75 +129,37 @@
     <div>
         <br>
     </div>
-<!-- Combined Data Container -->
-<div class="row">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header">
-                Combined Data
-            </div>
-            <div class="card-body">
-                <a href="#" id="delete-all-data" class="btn btn-danger">Delete All Data</a>
-                <div class="table-responsive" style="max-height: 400px; overflow: auto;">
-                    <table class="table table-bordered">
-                        <thead>
-                            <tr>
-                                <th>Fabric Type</th>
-                                <th>Date</th>
-                                <th>Color</th>
-                                <th>Set Type</th>
-                                <th>Price</th>
-
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for data in parsed_combined_data %}
-                            <tr>
-                                <td>{{ data.fabric_type }}</td>
-                                <td>{{ data.date }}</td>
-                                <td>{{ data.color }}</td>
-                                <td>{{ data.set_type }}</td>
-                                <td>{{ data.price }}</td>
-
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+    <!-- Combined Data Container -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    Combined Data
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
-<div>
-    <br>
-</div>
-<div class="row">
-    <div class="col-md-12">
-        <!-- Container 1: Fabrics -->
-        <div class="card">
-            <div class="card-header">
-                Fabrics
-            </div>
-            <div class="card-body">
-                <div class="table-responsive" style="max-height: 200px; overflow: auto;">
-                    <table class="table table-bordered">
-                        <thead>
-                            <tr>
-                                <th>Fabric</th>
-                                <th>Date</th>
-                                <th>Price</th>
+                <div class="card-body">
+                    <a href="#" id="delete-all-data" class="btn btn-danger">Delete All Data</a>
+                    <div class="table-responsive" style="max-height: 400px; overflow: auto;">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Fabric Type</th>
+                                    <th>Date</th>
+                                    <th>Color</th>
+                                    <th>Set Type</th>
                             </tr>
-                        </thead>
-                        <tbody>
-                            {% for fabric_data in sales_for_fabric_data %}
-                            <tr>
-                                <td>{{ fabric_data.fabric }}</td>
-                                <td>{{ fabric_data.date }}</td>
-                                <td>{{ fabric_data.price }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {% for data in parsed_combined_data %}
+                                <tr>
+                                    <td>{{ data.fabric_type }}</td>
+                                    <td>{{ data.date }}</td>
+                                    <td>{{ data.color }}</td>
+                                    <td>{{ data.set_type }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -205,112 +167,148 @@
     <div>
         <br>
     </div>
-    <div class="col-md-12">
-        <!-- Container 2: Set Type -->
-        <div class="card">
-            <div class="card-header">
-                Set Type
-            </div>
-            <div class="card-body">
-                <div class="table-responsive" style="max-height: 200px; overflow: auto;">
-                    <table class="table table-bordered">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Set Type</th>
-                                <th>Price</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for category_data in sales_for_category_data %}
-                            <tr>
-                                <td>{{ category_data.date }}</td>
-                                <td>{{ category_data.set_tag }}</td>
-                                <td>{{ category_data.price }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+    <div class="row">
+        <div class="col-md-12">
+            <!-- Container 1: Fabrics -->
+            <div class="card">
+                <div class="card-header">
+                    Fabrics
                 </div>
-            </div>
-        </div>
-    </div>
-    <div>
-        <br>
-    </div>
-    <div class="col-md-12">
-        <!-- Container 3: Color -->
-        <div class="card">
-            <div class="card-header">
-                Color
-            </div>
-            <div class="card-body">
-                <div class="table-responsive" style="max-height: 200px; overflow: auto;">
-                    <table class="table table-bordered">
-                        <thead>
-                            <tr>
-                                <th>Location</th>
-                                <th>Color</th>
-                                <th>Date</th>
-                                <th>Price</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for color_data in sales_for_color_data %}
-                            <tr>
-                                <td>{{ color_data.location }}</td>
-                                <td>{{ color_data.color }}</td>
-                                <td>{{ color_data.date }}</td>
-                                <td>{{ color_data.price }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div>
-        <br>
-    </div>
-    <div class="col-md-12">
-        <!-- Container 4: Location -->
-        <div class="card">
-            <div class="card-header">
-                Location
-            </div>
-            <div class="card-body">
-                <div class="table-responsive" style="max-height: 200px; overflow: auto;">
-                    <table class="table table-bordered">
-                        <thead>
-                            <tr>
-                                <th>Location</th>
-                                <th>Fabric</th>
-                                <th>Set Type</th>
-                                <th>Date</th>
-                                <th>Price</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for location_data in sales_for_location_data %}
-                            <tr>
-                                <td>{{ location_data.location }}</td>
-                                <td>{{ location_data.fabric }}</td>
-                                <td>{{ location_data.set_type }}</td>
-                                <td>{{ location_data.date }}</td>
-                                <td>{{ location_data.price }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+                <div class="card-body">
+                    <a href="#" id="delete-fabric-data" class="btn btn-danger">Delete All Data</a>
+                    <div class="table-responsive" style="max-height: 200px; overflow: auto;">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Fabric</th>
+                                    <th>Date</th>
+                                   
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fabric_data in sales_for_fabric_data %}
+                                <tr>
+                                    <td>{{ fabric_data.fabric }}</td>
+                                    <td>{{ fabric_data.date }}</td>
 
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div>
+            <br>
+        </div>
+        <div class="col-md-12">
+            <!-- Container 2: Set Type -->
+            <div class="card">
+                <div class="card-header">
+                    Set Type
+                </div>
+                <div class="card-body">
+                    <a href="#" id="delete-setType-data" class="btn btn-danger">Delete All Data</a>
+                    <div class="table-responsive" style="max-height: 200px; overflow: auto;">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Set Type</th>
+   
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for category_data in sales_for_category_data %}
+                                <tr>
+                                    <td>{{ category_data.date }}</td>
+                                    <td>{{ category_data.set_tag }}</td>
 
-<script>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div>
+            <br>
+        </div>
+        <div class="col-md-12">
+            <!-- Container 3: Color -->
+            <div class="card">
+                <div class="card-header">
+                    Color
+                </div>
+                <div class="card-body">
+                    <a href="#" id="delete-color-data" class="btn btn-danger">Delete All Data</a>
+                    <div class="table-responsive" style="max-height: 200px; overflow: auto;">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Fabric</th>
+                                    <th>Color</th>
+                                    <th>Date</th>
+
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for color_data in sales_for_color_data %}
+                                <tr>
+                                    <td>{{ color_data.fabric }}</td>
+                                    <td>{{ color_data.color }}</td>
+                                    <td>{{ color_data.date }}</td>
+
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div>
+            <br>
+        </div>
+        <div class="col-md-12">
+            <!-- Container 4: Location -->
+            <div class="card">
+                <div class="card-header">
+                    Location
+                </div>
+                <div class="card-body">
+                    <a href="#" id="delete-location-data" class="btn btn-danger">Delete All Data</a>
+                    <div class="table-responsive" style="max-height: 200px; overflow: auto;">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Location</th>
+                                    <th>Fabric</th>
+                                    <th>Set Type</th>
+                                    <th>Date</th>
+
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for location_data in sales_for_location_data %}
+                                <tr>
+                                    <td>{{ location_data.location }}</td>
+                                    <td>{{ location_data.fabric }}</td>
+                                    <td>{{ location_data.set_type }}</td>
+                                    <td>{{ location_data.date }}</td>
+
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
     document.addEventListener("DOMContentLoaded", function () {
         const deleteButton = document.getElementById("delete-all-data");
         if (deleteButton) {
@@ -324,10 +322,65 @@
         }
     });
     </script>
-
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const deleteButton = document.getElementById("delete-fabric-data");
+        if (deleteButton) {
+            deleteButton.addEventListener("click", function (event) {
+                event.preventDefault();
+                const confirmation = confirm("Are you sure you want to delete fabric data?");
+                if (confirmation) {
+                    window.location.href = "{% url 'fchub:delete-fabric-data' %}";
+                }
+            });
+        }
+    });
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const deleteButtonSetType = document.getElementById("delete-setType-data");
+            if (deleteButtonSetType) {
+                deleteButtonSetType.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    const confirmation = confirm("Are you sure you want to delete Set Type data?");
+                    if (confirmation) {
+                        window.location.href = "{% url 'fchub:delete-setType-data' %}";
+                    }
+                });
+            }
+        });
+    </script>
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const deleteButton = document.getElementById("delete-color-data");
+        if (deleteButton) {
+            deleteButton.addEventListener("click", function (event) {
+                event.preventDefault();
+                const confirmation = confirm("Are you sure you want to delete color data?");
+                if (confirmation) {
+                    window.location.href = "{% url 'fchub:delete-color-data' %}";
+                }
+            });
+        }
+    });
+    </script>
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const deleteButton = document.getElementById("delete-location-data");
+        if (deleteButton) {
+            deleteButton.addEventListener("click", function (event) {
+                event.preventDefault();
+                const confirmation = confirm("Are you sure you want to delete location data?");
+                if (confirmation) {
+                    window.location.href = "{% url 'fchub:delete-location-data' %}";
+                }
+            });
+        }
+    });
+    </script>
 </div>
 <!-- Include Bootstrap JS and jQuery -->
 <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.1/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@"></script>
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 {% endblock %}

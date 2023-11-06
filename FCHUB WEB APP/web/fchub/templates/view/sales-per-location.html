@@ -1,0 +1,33 @@
+<!-- sales_for_location/templates/sales_for_location/sales_for_location_list.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sales for Location</title>
+    <style>
+        /* Add your custom CSS styles here for the design */
+    </style>
+</head>
+<body>
+    <h1>Sales for Location</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Fabric</th>
+                <th>Set Type</th>
+                <th>Location</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sale in sales %}
+                <tr>
+                    <td>{{ sale.date }}</td>
+                    <td>{{ sale.fabric }}</td>
+                    <td>{{ sale.set_type }}</td>
+                    <td>{{ sale.location }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

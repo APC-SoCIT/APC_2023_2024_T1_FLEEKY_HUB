@@ -26,6 +26,7 @@ from xhtml2pdf import pisa
 from django.template.loader import get_template
 import logging
 from django.db import transaction
+from django.db.models import Subquery, OuterRef
 # Create your views here.
 
 @login_required
@@ -899,25 +900,9 @@ def view_fchub_model(request):
 
     for data in combined_data:
         if data.date:
-            date_obj = datetime.strptime(data.date, "%Y-%m-%d")
+            date_obj = datetime.strptime(data.date.strftime("%Y-%m-%d"), "%Y-%m-%d")
             data.date = date_obj.strftime("%B")  # Update the 'date' field to the month
-
-        # Split fabric, color, and set types if they contain multiple values
-        fabrics = data.fabric_type.split(', ')
-        colors = data.color.split(', ')
-        set_types = data.set_type.split(', ')
-
-        # Create separate rows for each combination
-        for fabric in fabrics:
-            for color in colors:
-                for set_type in set_types:
-                    parsed_data = SalesForWebData()
-                    parsed_data.fabric_type = fabric
-                    parsed_data.date = data.date  # Use the updated 'date' field
-                    parsed_data.color = color
-                    parsed_data.set_type = set_type
-                    parsed_data.price = data.price
-                    parsed_combined_data.append(parsed_data)
+        parsed_combined_data.append(data)
 
     context = {
         'parsed_combined_data': parsed_combined_data,
@@ -932,9 +917,6 @@ def view_fchub_model(request):
     return render(request, 'manage-business/fchub-data-model.html', context)
 
 
-
-
-
 def migrate_fchub_data(request):
     try:
         combined_data = []
@@ -943,37 +925,54 @@ def migrate_fchub_data(request):
         successful_orders = SuccessfulOrder.objects.all()
         tracker_data = Tracker.objects.all()
 
-        # Iterate through SuccessfulOrder data
-        for order in successful_orders:
-            # For each SuccessfulOrder, create a SalesForWebData instance
-            sales_data = SalesForWebData()
-            sales_data.fabric_type = order.fabric
-            sales_data.date = order.date
-            sales_data.color = order.color
-            sales_data.set_type = order.setType
-            sales_data.price = order.price
+        # Define the fields to process
+        fields = ["fabric", "color", "setType"]
 
+        # Create a dictionary to group data by price
+        price_groups = {}
 
-            # Add the instance to the combined_data list
-            combined_data.append(sales_data)
+        # Iterate through the data
+        for data in successful_orders:
+            price = data.price
+            if price not in price_groups:
+                price_groups[price] = {
+                    field: data_field.split(", ") for field, data_field in zip(fields, [data.fabric, data.color, data.setType])
+                }
+            else:
+                for field, data_field in zip(fields, [data.fabric, data.color, data.setType]):
+                    price_groups[price][field] += data_field.split(", ")
 
- 
-        # Iterate through Tracker data
+        for price, group in price_groups.items():
+            num_combinations = len(group[fields[0]])
+            
+            for i in range(num_combinations):
+                sales_data = SalesForWebData()
+                sales_data.fabric_type = group["fabric"][i]
+                sales_data.date = data.date
+                sales_data.color = group["color"][i]
+                sales_data.set_type = group["setType"][i]
+                sales_data.price = price if i == 0 else None  # Set price only for the first row
+                combined_data.append(sales_data)
+
         for data in tracker_data:
-            # For each Tracker data, create a SalesForWebData instance
-            sales_data = SalesForWebData()
-            sales_data.fabric_type = data.fabric_type
-            sales_data.location = data.month_of_purchase
-            sales_data.color = data.color
-            sales_data.set_type = data.setType
-            sales_data.price = data.price
+            # Create temporary lists for fabric_type, color, and setType
+            temp_lists = [data.fabric_type.split(", "), data.color.split(", "), data.setType.split(", ")]
+            
+            # Get the number of combinations
+            num_combinations = len(temp_lists[0])
 
-            # Add the instance to the combined_data list
-            combined_data.append(sales_data)
+            # Iterate through the combinations
+            for i in range(num_combinations):
+                sales_data = SalesForWebData()
+                sales_data.fabric_type = temp_lists[0][i]
+                sales_data.location = data.month_of_purchase
+                sales_data.color = temp_lists[1][i]
+                sales_data.set_type = temp_lists[2][i]
+                sales_data.price = data.price if i == 0 else None  # Set price only for the first row
+                combined_data.append(sales_data)
 
         # Save the combined data to the SalesForWebData model
         SalesForWebData.objects.bulk_create(combined_data)
-
 
         messages.success(request, 'Combined data migrated successfully.')
     except Exception as e:
@@ -983,13 +982,35 @@ def migrate_fchub_data(request):
     return HttpResponseRedirect(reverse('fchub:fchub-data-model'))
 
 
+
+
+
 def delete_all_data(request):
     # Delete all records from the SalesForWebData model
     SalesForWebData.objects.all().delete()
 
     return redirect('fchub:fchub-data-model')
 
+def delete_fabrics_data(request):
+    # Delete all records from the SalesForWebData model
+    SalesForFabric.objects.all().delete()
 
+    return redirect('fchub:fchub-data-model')
+
+def delete_setType_data(request):
+    # Delete all records from the SalesForWebData model
+    SalesForCategory.objects.all().delete()
+    return redirect('fchub:fchub-data-model')
+
+def delete_color_data(request):
+    # Delete all records from the SalesForWebData model
+    SalesForColor.objects.all().delete()
+    return redirect('fchub:fchub-data-model')
+
+def delete_location_data(request):
+    # Delete all records from the SalesForWebData model
+    SalesForLocation.objects.all().delete()
+    return redirect('fchub:fchub-data-model')
 
 def migrate_fabric_data(request):
     try:
@@ -1003,7 +1024,9 @@ def migrate_fabric_data(request):
             sales_data = SalesForFabric()
             sales_data.fabric = data.fabric_type  # Correct the field name to 'fabric'
             sales_data.date = data.date
-            sales_data.price = data.price
+
+            # Extract the month from the date
+            sales_data.month = data.date.strftime('%B')  # %B gives the full month name
 
             # Save the instance to the combined_fabric list
             sales_data.save()
@@ -1015,7 +1038,6 @@ def migrate_fabric_data(request):
 
     # Redirect to the 'fchub-data-model' view
     return HttpResponseRedirect(reverse('fchub:fchub-data-model'))
-
 
 def migrate_category_data(request):
     try:
@@ -1029,7 +1051,9 @@ def migrate_category_data(request):
             sales_data = SalesForCategory()
             sales_data.set_tag = data.set_type
             sales_data.date = data.date
-            sales_data.price = data.price
+
+            # Extract the month from the date
+            sales_data.month = data.date.strftime('%B')  # %B gives the full month name
 
             # Save the instance to the combined_fabric list
             sales_data.save()
@@ -1042,48 +1066,79 @@ def migrate_category_data(request):
     # Redirect to the 'fchub-data-model' view (or update this as needed)
     return HttpResponseRedirect(reverse('fchub:fchub-data-model'))
 
-
 def migrate_location_data(request):
     try:
+        # Create a set to keep track of processed combinations
+        processed_combinations = set()
+
         combined_location = []
 
-        # Retrieve data from the SuccessfulOrder and CsvData models
         successful_orders = SuccessfulOrder.objects.all()
-        csv_data = CsvData.objects.all()
+        tracker_data = Tracker.objects.all()
 
-        # Iterate through SuccessfulOrder data
-        for order in successful_orders:
-            # For each SuccessfulOrder, create a SalesForLocation instance
-            sales_data = SalesForLocation()
-            sales_data.date = order.date
-            sales_data.fabric = order.fabric
-            sales_data.set_type = order.setType
-            sales_data.location = order.location
-            sales_data.price = order.price
+        # Define the fields to process
+        fields = ["fabric", "color", "setType"]
 
-            # Add the instance to the combined_location list
-            sales_data.save()
-            combined_location.append(sales_data)
+        for data in successful_orders:
+            location = data.location  # Change this to the relevant field
+            if location not in processed_combinations:
+                location_data = {
+                    field: data_field.split(", ") for field, data_field in zip(fields, [data.fabric, data.color, data.setType])
+                }
+                num_combinations = len(location_data[fields[0]])
+                
+                for i in range(num_combinations):
+                    fabric = location_data["fabric"][i]
+                    color = location_data["color"][i]
+                    set_type = location_data["setType"][i]
 
-        # Iterate through CsvData
-        for data in csv_data:
-            # For each CsvData entry, create a SalesForLocation instance
-            sales_data = SalesForLocation()
-            sales_data.date = f"{data.year}-{data.month}-{data.day}"  # Adjust date format
-            sales_data.fabric = data.fabric
-            sales_data.set_type = data.setType
-            sales_data.location = data.location
-            sales_data.price = data.price
+                    # Check if this combination has already been processed
+                    combination_key = f"{fabric}-{color}-{set_type}-{location}"
+                    if combination_key not in processed_combinations:
+                        sales_data = SalesForLocation()
+                        sales_data.date = data.date
+                        sales_data.fabric = fabric
+                        sales_data.color = color
+                        sales_data.set_type = set_type
+                        sales_data.location = location
 
-            # Add the instance to the combined_location list
-            sales_data.save()
-            combined_location.append(sales_data)
+                        combined_location.append(sales_data)
+                        # Mark this combination as processed
+                        processed_combinations.add(combination_key)
+
+        for data in tracker_data:
+            # Create temporary lists for fabric_type, color, and setType
+            temp_lists = [data.fabric_type.split(", "), data.color.split(", "), data.setType.split(", ")]
+            
+            # Get the number of combinations
+            num_combinations = len(temp_lists[0])
+
+            for i in range(num_combinations):
+                fabric = temp_lists[0][i]
+                location = data.month_of_purchase
+                color = temp_lists[1][i]
+                set_type = temp_lists[2][i]
+
+                # Check if this combination has already been processed
+                combination_key = f"{fabric}-{color}-{set_type}-{location}"
+                if combination_key not in processed_combinations:
+                    sales_data = SalesForLocation()
+                    sales_data.fabric = fabric
+                    sales_data.location = location
+                    sales_data.color = color
+                    sales_data.set_type = set_type
+                    combined_location.append(sales_data)
+                    # Mark this combination as processed
+                    processed_combinations.add(combination_key)
+
+        # Save the combined data to the SalesForLocation model
+        SalesForLocation.objects.bulk_create(combined_location)
 
         messages.success(request, 'Location data migrated successfully.')
     except Exception as e:
         messages.error(request, f'Error: {e}')
 
-    # Redirect to the view you want (adjust the name accordingly)
+    # Redirect to the 'fchub-data-model' view or adjust the name accordingly
     return HttpResponseRedirect(reverse('fchub:fchub-data-model'))
 
 
@@ -1091,21 +1146,29 @@ def migrate_color_data(request):
     try:
         combined_color = []
 
-        # Retrieve data from the SuccessfulOrder model
         successful_orders = SuccessfulOrder.objects.all()
 
-        # Iterate through SuccessfulOrder data
         for order in successful_orders:
-            # For each SuccessfulOrder, create a SalesForColor instance
-            sales_data = SalesForColor()
-            sales_data.location = order.location
-            sales_data.color = order.color
-            sales_data.date = order.date
-            sales_data.price = order.price
+            fabric = order.fabric
+            color = order.color
 
-            # Add the instance to the combined_color list
-            sales_data.save()
-            combined_color.append(sales_data)
+            # Split the data fields by comma and whitespace
+            fabric_values = fabric.split(", ")
+            color_values = color.split(", ")
+
+            # Ensure that both fabric and color have the same number of values
+            num_combinations = min(len(fabric_values), len(color_values))
+
+            for i in range(num_combinations):
+                sales_data = SalesForColor()
+                sales_data.fabric = fabric_values[i]
+                sales_data.color = color_values[i]
+                sales_data.date = order.date
+
+                combined_color.append(sales_data)
+
+        # Save the combined data to the SalesForColor model
+        SalesForColor.objects.bulk_create(combined_color)
 
         messages.success(request, 'Color data migrated successfully.')
     except Exception as e:
@@ -1113,3 +1176,27 @@ def migrate_color_data(request):
 
     # Redirect to the view you want (adjust the name accordingly)
     return HttpResponseRedirect(reverse('fchub:fchub-data-model'))
+
+
+def sales_for_fabric_list(request):
+    sales = SalesForFabric.objects.all()
+    context = {'sales': sales}
+    return render(request, 'view/sales-per-product.html', context)
+
+
+def sales_for_category_list(request):
+    sales = SalesForCategory.objects.all()
+    context = {'sales': sales}
+    return render(request, 'view/sales-per-category.html', context)
+
+
+def sales_for_location_list(request):
+    sales = SalesForLocation.objects.all()
+    context = {'sales': sales}
+    return render(request, 'view/sales-per-location.html', context)
+
+
+def sales_for_color_list(request):
+    sales = SalesForColor.objects.all()
+    context = {'sales': sales}
+    return render(request, 'view/sales-per-color.html', context)
