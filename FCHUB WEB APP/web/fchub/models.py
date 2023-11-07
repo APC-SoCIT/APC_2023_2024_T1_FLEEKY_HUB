@@ -256,6 +256,7 @@ class SalesForWebData(models.Model):
 class SalesForFabric(models.Model):
     date = models.DateField()
     fabric = models.CharField(max_length=250)
+
     
 class SalesForCategory(models.Model):
     date = models.DateField()
@@ -267,6 +268,8 @@ class SalesForLocation(models.Model):
     fabric = models.CharField(max_length=250)
     set_type = models.CharField(max_length=250)
     location = models.CharField(max_length=100)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
 
 
 

@@ -3,6 +3,7 @@ import calendar
 from decimal import Decimal
 from io import TextIOWrapper
 import io
+import json
 from django.db.models import F, Sum
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -10,6 +11,10 @@ from django.core.cache import cache
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse, reverse_lazy
+import joblib
+from matplotlib import pyplot as plt
+from sklearn.calibration import LabelEncoder
+from sklearn.preprocessing import OneHotEncoder
 from customer.models import Address, Customer, Order, Product, OrderItem
 from .models import CsvData, Material, FleekyAdmin, Category, SalesForCategory, SalesForColor, SalesForFabric, SalesForLocation, SalesForWebData, SuccessfulOrder, Tracker, User
 from .forms import  CategoryForm, CsvUploadForm, FleekyAdminForm, MaterialForm, ProductForm, TrackerForm
@@ -21,12 +26,37 @@ from django.contrib import messages
 import os
 from django.db.models import Q
 from django.core.exceptions import ValidationError
-from datetime import datetime
+from datetime import date, datetime
 from xhtml2pdf import pisa
 from django.template.loader import get_template
 import logging
 from django.db import transaction
 from django.db.models import Subquery, OuterRef
+from django.shortcuts import render
+from .models import SalesForFabric
+import matplotlib.pyplot as plt
+from io import BytesIO
+import base64
+from django.db.models import Count
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from joblib import dump, load
+from django.shortcuts import render
+from django.http import HttpResponse
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from django.db.models import Count, Max
+from django.http import JsonResponse
+from django.middleware.csrf import get_token
+from django.views.generic import TemplateView
+from django.db.models.functions import TruncMonth
+from django.shortcuts import render
+from django.db.models import F
+from geopy.geocoders import Nominatim
+from .models import SalesForLocation
+from django.core.serializers.json import DjangoJSONEncoder
 # Create your views here.
 
 @login_required
@@ -923,7 +953,7 @@ def migrate_fchub_data(request):
 
         # Retrieve data from the SuccessfulOrder and Tracker models
         successful_orders = SuccessfulOrder.objects.all()
-        tracker_data = Tracker.objects.all()
+        #tracker_data = Tracker.objects.all()
 
         # Define the fields to process
         fields = ["fabric", "color", "setType"]
@@ -954,22 +984,6 @@ def migrate_fchub_data(request):
                 sales_data.price = price if i == 0 else None  # Set price only for the first row
                 combined_data.append(sales_data)
 
-        for data in tracker_data:
-            # Create temporary lists for fabric_type, color, and setType
-            temp_lists = [data.fabric_type.split(", "), data.color.split(", "), data.setType.split(", ")]
-            
-            # Get the number of combinations
-            num_combinations = len(temp_lists[0])
-
-            # Iterate through the combinations
-            for i in range(num_combinations):
-                sales_data = SalesForWebData()
-                sales_data.fabric_type = temp_lists[0][i]
-                sales_data.location = data.month_of_purchase
-                sales_data.color = temp_lists[1][i]
-                sales_data.set_type = temp_lists[2][i]
-                sales_data.price = data.price if i == 0 else None  # Set price only for the first row
-                combined_data.append(sales_data)
 
         # Save the combined data to the SalesForWebData model
         SalesForWebData.objects.bulk_create(combined_data)
@@ -1074,7 +1088,7 @@ def migrate_location_data(request):
         combined_location = []
 
         successful_orders = SuccessfulOrder.objects.all()
-        tracker_data = Tracker.objects.all()
+        #tracker_data = Tracker.objects.all()
 
         # Define the fields to process
         fields = ["fabric", "color", "setType"]
@@ -1106,34 +1120,21 @@ def migrate_location_data(request):
                         # Mark this combination as processed
                         processed_combinations.add(combination_key)
 
-        for data in tracker_data:
-            # Create temporary lists for fabric_type, color, and setType
-            temp_lists = [data.fabric_type.split(", "), data.color.split(", "), data.setType.split(", ")]
-            
-            # Get the number of combinations
-            num_combinations = len(temp_lists[0])
-
-            for i in range(num_combinations):
-                fabric = temp_lists[0][i]
-                location = data.month_of_purchase
-                color = temp_lists[1][i]
-                set_type = temp_lists[2][i]
-
-                # Check if this combination has already been processed
-                combination_key = f"{fabric}-{color}-{set_type}-{location}"
-                if combination_key not in processed_combinations:
-                    sales_data = SalesForLocation()
-                    sales_data.fabric = fabric
-                    sales_data.location = location
-                    sales_data.color = color
-                    sales_data.set_type = set_type
-                    combined_location.append(sales_data)
-                    # Mark this combination as processed
-                    processed_combinations.add(combination_key)
-
-        # Save the combined data to the SalesForLocation model
         SalesForLocation.objects.bulk_create(combined_location)
+        
+        sales = SalesForLocation.objects.all()
 
+        geolocator = Nominatim(user_agent="sales_app")  # Create a geocoder object
+
+        # Iterate through sales data and geocode the location names
+        for sale in sales:
+            location = sale.location
+            if location:
+                location_info = geolocator.geocode(location)
+                if location_info:
+                    sale.latitude = location_info.latitude
+                    sale.longitude = location_info.longitude
+                    sale.save()
         messages.success(request, 'Location data migrated successfully.')
     except Exception as e:
         messages.error(request, f'Error: {e}')
@@ -1178,25 +1179,164 @@ def migrate_color_data(request):
     return HttpResponseRedirect(reverse('fchub:fchub-data-model'))
 
 
+
+
+
+
+# View to list sales and generate chart data
 def sales_for_fabric_list(request):
     sales = SalesForFabric.objects.all()
-    context = {'sales': sales}
+
+    # Prepare data for charts
+    fabric_counts = SalesForFabric.objects.values('fabric').annotate(count=Count('fabric'))
+    fabric_labels = [item['fabric'] for item in fabric_counts]
+    fabric_counts = [item['count'] for item in fabric_counts]
+
+    # Prepare bar graph data
+    bar_data = {
+        'months': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        'fabrics': fabric_labels,
+        'sales_data': {}
+    }
+
+    for fabric in fabric_labels:
+        fabric_data = SalesForFabric.objects.filter(fabric=fabric).values('date__month').annotate(count=Count('date__month'))
+        sales_by_month = [0] * 12
+        for item in fabric_data:
+            sales_by_month[item['date__month'] - 1] = item['count']
+        bar_data['sales_data'][fabric] = sales_by_month
+
+    context = {
+        'sales': sales,
+        'fabric_labels': fabric_labels,
+        'fabric_counts': fabric_counts,
+        'bar_data': bar_data,
+    }
+
     return render(request, 'view/sales-per-product.html', context)
 
 
-def sales_for_category_list(request):
-    sales = SalesForCategory.objects.all()
-    context = {'sales': sales}
-    return render(request, 'view/sales-per-category.html', context)
 
+
+
+
+
+
+class SalesForCategoryView(TemplateView):
+    template_name = 'view/sales-per-category.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        sales = SalesForCategory.objects.all()
+
+        # Prepare data for charts
+        category_counts = SalesForCategory.objects.values('set_tag').annotate(count=Count('set_tag'))
+        category_labels = [item['set_tag'] for item in category_counts]
+        category_counts = [item['count'] for item in category_counts]
+
+        # Prepare bar graph data based on months
+        bar_data = {
+            'months': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+            'categories': category_labels,
+            'sales_data': {}
+        }
+
+        for category in category_labels:
+            category_data = SalesForCategory.objects.filter(set_tag=category).annotate(
+                month=TruncMonth('date')
+            ).values('month').annotate(count=Count('month')).order_by('month')
+            sales_by_month = [0] * 12
+            for item in category_data:
+                month = item['month'].strftime('%b')  # Format the month as abbreviated name
+                index = bar_data['months'].index(month)
+                sales_by_month[index] = item['count']
+            bar_data['sales_data'][category] = sales_by_month
+
+        context['sales'] = sales
+        context['category_labels'] = category_labels
+        context['category_counts'] = category_counts
+        context['bar_data'] = bar_data
+
+        return context
+
+class SalesForColorView(TemplateView):
+    template_name = 'view/sales-per-color.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        sales = SalesForColor.objects.all()
+
+        # Prepare data for charts
+        color_counts = SalesForColor.objects.values('color').annotate(count=Count('color'))
+        color_labels = [item['color'] for item in color_counts]
+        color_counts = [item['count'] for item in color_counts]
+
+        # Prepare bar graph data based on months
+        color_bar_data = {
+            'months': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+            'colors': color_labels,
+            'sales_data': {}
+        }
+
+        for color in color_labels:
+            color_data = SalesForColor.objects.filter(color=color).annotate(
+                month=TruncMonth('date')
+            ).values('month').annotate(count=Count('month')).order_by('month')
+            sales_by_month = [0] * 12
+            for item in color_data:
+                month = item['month'].strftime('%b')  # Format the month as an abbreviated name
+                index = color_bar_data['months'].index(month)
+                sales_by_month[index] = item['count']
+            color_bar_data['sales_data'][color] = sales_by_month
+
+        context['sales'] = sales
+        context['color_labels'] = color_labels
+        context['color_counts'] = color_counts
+        context['color_bar_data'] = color_bar_data
+
+        return context
+
+
+from collections import Counter
 
 def sales_for_location_list(request):
     sales = SalesForLocation.objects.all()
-    context = {'sales': sales}
+
+    sales_data = []
+    locations = []
+    fabrics = []
+    dates = []
+    set_types = []
+
+    location_counts = Counter()  # Count the occurrences of each location
+
+    for sale in sales:
+        location = sale.location
+        sales_data.append({
+            'location': location,
+            'latitude': sale.latitude,
+            'longitude': sale.longitude,
+            'fabric': sale.fabric,
+            'dates': sale.date.strftime('%B'),  # Convert date to the full month name
+            'set_type': sale.set_type,
+        })
+
+        locations.append(location)
+        fabrics.append(sale.fabric)
+        dates.append(sale.date.strftime('%B'))
+        set_types.append(sale.set_type)
+
+        location_counts[location] += 1  # Update the location count
+
+    context = {
+        'sales_data': json.dumps(sales_data, cls=DjangoJSONEncoder),
+        'locations': json.dumps(locations),
+        'fabrics': json.dumps(fabrics),
+        'dates': json.dumps(dates),
+        'set_types': json.dumps(set_types),
+        'location_counts': dict(location_counts),  # Provide the location counts as a dictionary
+        'sales_data': sales_data,
+    }
+
     return render(request, 'view/sales-per-location.html', context)
 
-
-def sales_for_color_list(request):
-    sales = SalesForColor.objects.all()
-    context = {'sales': sales}
-    return render(request, 'view/sales-per-color.html', context)

@@ -77,9 +77,14 @@ urlpatterns = [
 
 
     path('sales/', views.sales_for_fabric_list, name='sales-for-fabric-list'),
-    path('sales-for-category/', views.sales_for_category_list, name='sales-for-category-list'),
-    path('sales-for-location/', views.sales_for_location_list, name='sales-for-location-list'),
-    path('sales-for-color/', views.sales_for_color_list, name='sales-for-color-list'),
+    path('sales-for-category/', views. SalesForCategoryView.as_view(), name='sales-for-category-list'),
+    
+    path('sales-for-location/', views.sales_for_location_list, name='sales-for-location'),
+    path('sales-for-color/', views.SalesForColorView.as_view(), name='sales-for-color-list'),
+
+
+
+
 
 ]
 if settings.DEBUG:
