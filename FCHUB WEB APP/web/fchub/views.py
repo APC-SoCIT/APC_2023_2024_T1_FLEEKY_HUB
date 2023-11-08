@@ -11,12 +11,13 @@ from django.core.cache import cache
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse, reverse_lazy
+from django.views import View
 import joblib
 from matplotlib import pyplot as plt
 from sklearn.calibration import LabelEncoder
 from sklearn.preprocessing import OneHotEncoder
 from customer.models import Address, Customer, Order, Product, OrderItem
-from .models import CsvData, Material, FleekyAdmin, Category, SalesForCategory, SalesForColor, SalesForFabric, SalesForLocation, SalesForWebData, SuccessfulOrder, Tracker, User
+from .models import CleanTrainingSets, CsvData, Material, FleekyAdmin, Category, SalesForCategory, SalesForColor, SalesForFabric, SalesForLocation, SalesForWebData, SuccessfulOrder, Tracker, User, TrainingSets
 from .forms import  CategoryForm, CsvUploadForm, FleekyAdminForm, MaterialForm, ProductForm, TrackerForm
 from django.contrib.auth.forms import UserCreationForm
 from .models import Csv  # Make sure you have this import
@@ -57,6 +58,20 @@ from django.db.models import F
 from geopy.geocoders import Nominatim
 from .models import SalesForLocation
 from django.core.serializers.json import DjangoJSONEncoder
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+import random
+import matplotlib.pyplot as plt
+from django.views.generic import TemplateView
+from django.shortcuts import render
+from .models import CleanTrainingSets
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score, mean_absolute_error
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from collections import defaultdict
 # Create your views here.
 
 @login_required
@@ -223,6 +238,7 @@ def update_status(request, order_id):
                 date=order.order_date.date(),
                 location=address.city + ", " + address.province,
                 name=customer_name,
+
                 fabric=fabrics,
                 setType=setType,
                 color=colors,
@@ -238,6 +254,18 @@ def update_status(request, order_id):
             location = address.detailed_address[:3]
             successful_order.success_order_id = f'SuccessfulOrder-{last_5_order_number}-{customer_name}-{username}-{location}'
             successful_order.save()
+
+            trainingsets = TrainingSets(
+                date=order.order_date.date(),
+                location=address.city + ", " + address.province,
+                fabric=fabrics,
+                setType=setType,
+                color=colors,
+                qty=total_count,  # Quantity of each product
+                count=total_count_for_set_type,  # Total count based on set type and quantity
+                total_price=total_price
+            )
+            trainingsets.save()
 
         # Redirect back to the 'update-status' view with the updated order_id
         return redirect('fchub:orders')
@@ -919,7 +947,8 @@ def view_fchub_model(request):
     combined_data = SalesForWebData.objects.all()
     purchase_data = Tracker.objects.all()
     successful_orders = SuccessfulOrder.objects.all()
-    
+    raw_training_sets = TrainingSets.objects.all()
+    cleaned_training_sets = CleanTrainingSets.objects.all()
     # Add the following lines to retrieve data for the new models
     sales_for_fabric_data = SalesForFabric.objects.all()
     sales_for_category_data = SalesForCategory.objects.all()
@@ -942,6 +971,8 @@ def view_fchub_model(request):
         'sales_for_category_data': sales_for_category_data,
         'sales_for_location_data': sales_for_location_data,
         'sales_for_color_data': sales_for_color_data,
+        'raw_training_sets':raw_training_sets,
+        'cleaned_training_sets':cleaned_training_sets,
     }
 
     return render(request, 'manage-business/fchub-data-model.html', context)
@@ -1004,6 +1035,14 @@ def delete_all_data(request):
     SalesForWebData.objects.all().delete()
 
     return redirect('fchub:fchub-data-model')
+
+
+def delete_clean_all_data(request):
+    # Delete all records from the SalesForWebData model
+    CleanTrainingSets.objects.all().delete()
+
+    return redirect('fchub:fchub-data-model')
+
 
 def delete_fabrics_data(request):
     # Delete all records from the SalesForWebData model
@@ -1178,7 +1217,51 @@ def migrate_color_data(request):
     # Redirect to the view you want (adjust the name accordingly)
     return HttpResponseRedirect(reverse('fchub:fchub-data-model'))
 
+def migrate_training_data(request):
+    try:
+        processed_combinations = set()
+        combined_training_data = []
 
+        training_data = TrainingSets.objects.all()
+
+        for data in training_data:
+            location = data.location
+            location_data = {
+                'fabric': data.fabric.split(', '),
+                'color': data.color.split(', '),
+                'setType': data.setType.split(', '),
+            }
+            num_combinations = len(location_data['fabric'])
+
+            for i in range(num_combinations):
+                fabric = location_data['fabric'][i]
+                color = location_data['color'][i]
+                set_type = location_data['setType'][i]
+
+                combination_key = f"{fabric}-{color}-{set_type}-{location}"
+                if combination_key not in processed_combinations:
+                    clean_training_data = CleanTrainingSets(
+                        date=data.date,
+                        location=location,
+                        fabric=fabric,
+                        setType=set_type,
+                        color=color,
+                        qty=data.qty,
+                        count=data.count,
+                        total_price=data.total_price
+                    )
+
+                    combined_training_data.append(clean_training_data)
+                    processed_combinations.add(combination_key)
+
+
+        CleanTrainingSets.objects.bulk_create(combined_training_data)
+        messages.success(request, 'Location data migrated successfully.')
+    except Exception as e:
+        messages.error(request, f'Error: {e}')
+        print(f"Error: {e}")  # Print the error message
+
+    return redirect('fchub:fchub-data-model')
 
 
 
@@ -1297,7 +1380,7 @@ class SalesForColorView(TemplateView):
         return context
 
 
-from collections import Counter
+from collections import Counter, defaultdict
 
 def sales_for_location_list(request):
     sales = SalesForLocation.objects.all()
@@ -1340,3 +1423,541 @@ def sales_for_location_list(request):
 
     return render(request, 'view/sales-per-location.html', context)
 
+import matplotlib
+matplotlib.use('agg')
+class TopSellingModelTrainer(TemplateView):
+    template_name = 'manage-business/train-top-selling.html'
+
+    def get(self, request):
+        return render(request, self.template_name, {'message': None, 'top_selling_dataset': None, 'raw_data': None, 'training_reports': None})
+
+    def post(self, request):
+        data = CleanTrainingSets.objects.values()
+        df = pd.DataFrame(data)
+
+        top_selling_datasets = self.calculate_quantity(df)
+        cleaned_data = self.clean_data(df)
+        trained_models, maes = self.train_model(cleaned_data)
+
+        # Calculate training reports
+        accuracy = self.calculate_accuracy(cleaned_data, trained_models)
+        model_type = 'Linear Regression'  # You can set the actual model type here
+
+        # Prepare training reports
+        training_reports = {
+            'accuracy': accuracy,
+            'model_type': model_type,
+        }
+
+        context = {
+            'message': "Success: Quantity calculated for each combination of fabric, set type, and color",
+            'top_selling_dataset': top_selling_datasets,
+            'raw_data': data,
+            'trained_models': trained_models,
+            'maes': maes,
+            'training_reports': training_reports,
+        }
+
+        return render(request, self.template_name, context)
+
+    def calculate_quantity(self, df):
+        quantity_by_combination = []
+
+        # Group the data by unique combinations of 'fabric', 'setType', and 'color'
+        combinations = df.groupby(['fabric', 'setType', 'color'])
+
+        for combination, data in combinations:
+            total_quantity = data['qty'].sum()  # Calculate the total quantity for the combination
+            quantity_by_combination.append({
+                'fabric': combination[0],
+                'setType': combination[1],
+                'color': combination[2],
+                'qty': total_quantity
+            })
+
+        return quantity_by_combination
+
+
+    def clean_data(self, df):
+        label_encoders = self.get_label_encoders(df)
+
+        print("Columns in DataFrame:")
+        print(df.columns)
+
+        for col in ['fabric', 'setType', 'color']:
+            if col in df.columns:
+                df[col] = label_encoders[col].transform(df[col])
+            else:
+                # Handle the case when the column is not found
+                print(f"Column '{col}' not found in the dataset")
+
+        return df
+
+    def train_model(self, df):
+        models = {}
+        model_reports = {}  # To store model training reports
+
+        for col in ['fabric', 'setType', 'color']:
+            group = df.groupby(col)
+            for group_name, group_data in group:
+                if len(group_data) < 2:
+                    print(f"Skipping {col} group '{group_name}' due to insufficient data.")
+                    continue
+
+                X = group_data[['fabric', 'setType', 'color', 'qty']]
+                y = group_data['qty']
+
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+                model = LinearRegression()
+                model.fit(X_train, y_train)
+
+                y_pred = model.predict(X_test)
+                mae = mean_absolute_error(y_test, y_pred)
+
+                group_data['predicted_qty'] = model.predict(X)
+
+                # Calculate R-squared value (coefficient of determination)
+                r_squared = r2_score(y_test, y_pred)
+
+                model_key = f'{col}_{group_name}'
+                models[model_key] = (f'qty for {col} {group_name}', mae)
+                
+                # Store the training report for the model
+                model_reports[model_key] = {
+                    'model_type': 'Linear Regression',
+                    'r_squared': r_squared,  # R-squared value
+                }
+
+        return models, model_reports
+
+    def calculate_accuracy(self, df, trained_models):
+        # Calculate accuracy (you can use different metrics if needed)
+        total_mae = sum(mae for _, mae in trained_models.values())
+        accuracy = 1 - (total_mae / len(df))
+        return accuracy
+
+    def get_label_encoders(self, df):
+        label_encoders = defaultdict(LabelEncoder)
+
+        for col in ['fabric', 'setType', 'color']:
+            label_encoders[col].fit(df[col])
+
+        return label_encoders
+    
+
+import matplotlib
+matplotlib.use('agg')
+class BestSellingModelTrainer(TemplateView):
+    template_name = 'manage-business/train-best-selling.html'
+
+    def get(self, request):
+        return render(request, self.template_name, {'message': None, 'best_selling_dataset': None, 'raw_data': None, 'training_reports': None})
+
+    def post(self, request):
+        data = CleanTrainingSets.objects.values()
+        df = pd.DataFrame(data)
+
+        best_selling_datasets = self.calculate_quantity(df)
+        cleaned_data = self.clean_data(df)
+        trained_models, model_reports = self.train_model(cleaned_data)
+
+        # Calculate training reports
+        accuracy = self.calculate_accuracy(cleaned_data, trained_models)
+        model_type = 'Linear Regression'  # You can set the actual model type here
+
+        # Prepare training reports
+        training_reports = {
+            'accuracy': accuracy,
+            'model_type': model_type,
+        }
+
+        context = {
+            'message': "Success: Quantity calculated for each combination of date, location, fabric, and setType",
+            'best_selling_dataset': best_selling_datasets,
+            'raw_data': data,
+            'trained_models': trained_models,
+            'model_reports': model_reports,
+            'training_reports': training_reports,
+        }
+
+        return render(request, self.template_name, context)
+
+    def calculate_quantity(self, df):
+        quantity_by_combination = []
+
+        # Convert the 'date' column to months
+        df['date'] = df['date'].apply(lambda x: x.strftime('%B'))  # Extract month name
+
+        # Group the data by unique combinations of your desired features
+        combinations = df.groupby(['date', 'location', 'fabric', 'setType'])
+
+        for combination, data in combinations:
+            total_quantity = data['qty'].sum()  # Calculate the total quantity for the combination
+            quantity_by_combination.append({
+                'date': combination[0],
+                'location': combination[1],
+                'fabric': combination[2],
+                'setType': combination[3],
+                'qty': total_quantity
+            })
+
+        return quantity_by_combination
+
+    def clean_data(self, df):
+        label_encoders = self.get_label_encoders(df)
+
+        for col in ['date', 'location', 'fabric', 'setType']:
+            if col in df.columns:
+                df[col] = label_encoders[col].transform(df[col])
+            else:
+                # Handle the case when the column is not found
+                print(f"Column '{col}' not found in the dataset")
+
+        return df
+    
+    def train_model(self, df):
+        models = {}
+        model_reports = {}
+
+        for col in ['date', 'location', 'fabric', 'setType']:
+            group = df.groupby(col)
+            for group_name, group_data in group:
+                if len(group_data) < 2:
+                    print(f"Skipping {col} group '{group_name}' due to insufficient data.")
+                    continue
+
+                X = group_data[['date', 'location', 'fabric', 'setType', 'qty', 'total_price']]
+                y = group_data['qty']
+
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+                model = LinearRegression()
+                model.fit(X_train, y_train)
+
+                y_pred = model.predict(X_test)
+                mae = mean_absolute_error(y_test, y_pred)
+
+                group_data['predicted_qty'] = model.predict(X)
+
+                r_squared = r2_score(y_test, y_pred)
+
+                model_key = f'{col}_{group_name}'
+                models[model_key] = (f'qty for {col} {group_name}', mae)
+                
+                model_reports[model_key] = {
+                    'model_type': 'Linear Regression',
+                    'r_squared': r_squared,
+                }
+
+        return models, model_reports
+
+    def calculate_accuracy(self, df, trained_models):
+        total_mae = sum(mae for _, mae in trained_models.values())
+        accuracy = 1 - (total_mae / len(df))
+        return accuracy
+
+    def get_label_encoders(self, df):
+        label_encoders = defaultdict(LabelEncoder)
+
+        for col in ['date', 'location', 'fabric', 'setType']:
+            label_encoders[col].fit(df[col])
+
+        return label_encoders
+
+
+from sklearn.tree import DecisionTreeRegressor
+
+class WinnersModelTrainer(TemplateView):
+    template_name = 'manage-business/train-winners.html'
+
+    def get(self, request):
+            return render(request, self.template_name, {'message': None, 'winners_dataset': None, 'raw_data': None, 'training_reports': None})
+
+    def post(self, request):
+        data = CleanTrainingSets.objects.values()
+        df = pd.DataFrame(data)
+
+        winners_datasets = self.calculate_winners(df)
+        cleaned_data = self.clean_data(df)
+        linear_regression_models, linear_regression_reports = self.train_linear_regression(cleaned_data)
+        decision_tree_models, decision_tree_reports = self.train_decision_tree(cleaned_data)
+
+        # Calculate training reports
+        linear_regression_accuracy = self.calculate_accuracy(cleaned_data, linear_regression_models)
+        decision_tree_accuracy = self.calculate_accuracy(cleaned_data, decision_tree_models)
+
+        context = {
+            'message': "Success: Winners calculated for each combination of date, location, fabric, and setType",
+            'winners_dataset': winners_datasets,
+            'raw_data': data,
+            'linear_regression_models': linear_regression_models,
+            'linear_regression_reports': linear_regression_reports,
+            'linear_regression_accuracy': linear_regression_accuracy,
+            'decision_tree_models': decision_tree_models,
+            'decision_tree_reports': decision_tree_reports,
+            'decision_tree_accuracy': decision_tree_accuracy,
+        }
+
+        return render(request, self.template_name, context)
+
+
+    def calculate_winners(self, df):
+        winners_by_combination = []
+
+        # Convert the 'date' column to months
+        df['date'] = df['date'].apply(lambda x: x.strftime('%B'))  # Extract month name
+
+        # Group the data by unique combinations of your desired features
+        combinations = df.groupby(['date', 'location', 'fabric', 'setType'])
+
+        for combination, data in combinations:
+            max_qty_index = data['qty'].idxmax()  # Find the index with the highest 'qty'
+            winner_product = data.loc[max_qty_index]
+            winners_by_combination.append({
+                'date': combination[0],
+                'location': combination[1],
+                'fabric': combination[2],
+                'setType': combination[3],
+                'winner_product': winner_product
+            })
+
+        return winners_by_combination
+
+    def clean_data(self, df):
+        label_encoders = self.get_label_encoders(df)  # Call the get_label_encoders method
+
+        for col in ['date', 'location', 'fabric', 'setType']:
+            if col in df.columns:
+                df[col] = label_encoders[col].transform(df[col])
+            else:
+                # Handle the case when the column is not found
+                print(f"Column '{col}' not found in the dataset")
+
+        return df
+
+    def train_linear_regression(self, df):
+        models = {}
+        model_reports = {}
+
+        for col in ['date', 'location', 'fabric', 'setType']:
+            group = df.groupby(col)
+            for group_name, group_data in group:
+                if len(group_data) < 2:
+                    print(f"Skipping {col} group '{group_name}' due to insufficient data.")
+                    continue
+
+                X = group_data[['date', 'location', 'fabric', 'setType', 'qty', 'total_price']]
+                y = group_data['qty']
+
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+                model = LinearRegression()
+                model.fit(X_train, y_train)
+
+                y_pred = model.predict(X_test)
+                mae = mean_absolute_error(y_test, y_pred)
+
+                group_data['predicted_qty'] = model.predict(X)
+
+                r_squared = r2_score(y_test, y_pred)
+
+                model_key = f'{col}_{group_name}'
+                models[model_key] = (f'qty for {col} {group_name}', mae)
+                
+                model_reports[model_key] = {
+                    'model_type': 'Linear Regression',
+                    'r_squared': r_squared,
+                }
+
+        return models, model_reports
+
+    def train_decision_tree(self, df):
+        models = {}
+        model_reports = {}
+
+        for col in ['date', 'location', 'fabric', 'setType']:
+            group = df.groupby(col)
+            for group_name, group_data in group:
+                if len(group_data) < 2:
+                    print(f"Skipping {col} group '{group_name}' due to insufficient data.")
+                    continue
+
+                X = group_data[['date', 'location', 'fabric', 'setType', 'qty', 'total_price']]
+                y = group_data['qty']
+
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+                model = DecisionTreeRegressor()
+                model.fit(X_train, y_train)
+
+                y_pred = model.predict(X_test)
+                mae = mean_absolute_error(y_test, y_pred)
+
+                group_data['predicted_qty'] = model.predict(X)
+
+                r_squared = r2_score(y_test, y_pred)
+                rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+
+                model_key = f'{col}_{group_name}'
+                models[model_key] = (f'qty for {col} {group_name}', mae)
+
+                model_reports[model_key] = {
+                    'model_type': 'Decision Tree',
+                    'r_squared': r_squared,
+                    'rmse': rmse,
+                }
+
+        return models, model_reports
+
+    def calculate_accuracy(self, df, trained_models):
+        total_mae = sum(mae for _, mae in trained_models.values())
+        accuracy = 1 - (total_mae / len(df))
+        return accuracy
+
+    def get_label_encoders(self, df):
+        label_encoders = defaultdict(LabelEncoder)
+
+        for col in ['date', 'location', 'fabric', 'setType']:
+            label_encoders[col].fit(df[col])
+
+        return label_encoders
+    
+class LosersModelTrainer(TemplateView):
+    template_name = 'manage-business/train-losers.html'  # Update the template name
+
+    def get(self, request):
+        return render(request, self.template_name, {'message': None, 'losers_dataset': None, 'raw_data': None, 'training_reports': None})
+
+    def post(self, request):
+        data = CleanTrainingSets.objects.values()
+        df = pd.DataFrame(data)
+
+        losers_datasets = self.calculate_losers(df)  # Update to calculate losers
+        cleaned_data = self.clean_data(df)
+        linear_regression_models, linear_regression_reports = self.train_linear_regression(cleaned_data)
+
+        # Calculate training reports for losers
+        linear_regression_accuracy = self.calculate_accuracy(cleaned_data, linear_regression_models)
+
+        context = {
+            'message': "Success: Losers calculated for each combination of date, location, fabric, and setType",  # Update the message
+            'losers_dataset': losers_datasets,  # Update to losers_dataset
+            'raw_data': data,
+            'linear_regression_models': linear_regression_models,
+            'linear_regression_reports': linear_regression_reports,
+            'linear_regression_accuracy': linear_regression_accuracy,
+        }
+
+        return render(request, self.template_name, context)
+
+    def calculate_losers(self, df):
+        losers_by_combination = []  # Update the variable name
+
+        # Convert the 'date' column to months
+        df['date'] = df['date'].apply(lambda x: x.strftime('%B'))  # Extract month name
+
+        # Group the data by unique combinations of your desired features
+        combinations = df.groupby(['date', 'location', 'fabric', 'setType'])
+
+        for combination, data in combinations:
+            min_qty_index = data['qty'].idxmin()  # Find the index with the lowest 'qty' (losing product)
+            loser_product = data.loc[min_qty_index]
+            losers_by_combination.append({
+                'date': combination[0],
+                'location': combination[1],
+                'fabric': combination[2],
+                'setType': combination[3],
+                'loser_product': loser_product  # Update to loser_product
+            })
+
+        return losers_by_combination
+
+    def clean_data(self, df):
+        label_encoders = self.get_label_encoders(df)  # Call the get_label_encoders method
+
+        for col in ['date', 'location', 'fabric', 'setType']:
+            if col in df.columns:
+                df[col] = label_encoders[col].transform(df[col])
+            else:
+                # Handle the case when the column is not found
+                print(f"Column '{col}' not found in the dataset")
+
+        return df
+
+    def train_linear_regression(self, df):
+        models = {}
+        model_reports = {}
+
+        for col in ['date', 'location', 'fabric', 'setType']:
+            group = df.groupby(col)
+            for group_name, group_data in group:
+                if len (group_data) < 2:
+                    print(f"Skipping {col} group '{group_name}' due to insufficient data.")
+                    continue
+
+                X = group_data[['date', 'location', 'fabric', 'setType', 'qty', 'total_price']]
+                y = group_data['qty']
+
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+                model = LinearRegression()
+                model.fit(X_train, y_train)
+
+                y_pred = model.predict(X_test)
+                mae = mean_absolute_error(y_test, y_pred)
+
+                group_data['predicted_qty'] = model.predict(X)
+
+                r_squared = r2_score(y_test, y_pred)
+
+                model_key = f'{col}_{group_name}'
+                models[model_key] = (f'qty for {col} {group_name}', mae)
+                
+                model_reports[model_key] = {
+                    'model_type': 'Linear Regression',
+                    'r_squared': r_squared,
+                }
+
+        return models, model_reports
+
+    def calculate_accuracy(self, df, trained_models):
+        total_mae = sum(mae for _, mae in trained_models.values())
+        accuracy = 1 - (total_mae / len(df))
+        return accuracy
+
+    def get_label_encoders(self, df):
+        label_encoders = defaultdict(LabelEncoder)
+
+        for col in ['date', 'location', 'fabric', 'setType']:
+            label_encoders[col].fit(df[col])
+
+        return label_encoders
+    
+
+def visualize_products(request):
+    # Retrieve all products
+    products = Product.objects.all()
+
+    # Serialize the products as JSON and pass them to the template
+    product_data = json.dumps([{'name': product.name, 'quantity': product.stock} for product in products])
+
+    return render(request, 'view/visualize-product.html', {
+        'products': product_data,
+    })
+
+def visualize_colors(request):
+    # Retrieve all colors (assuming colors are part of the Product model)
+    colors = Product.objects.values_list('color', flat=True).distinct()
+
+    return render(request, 'view/visualize-colors.html', {
+        'colors': colors,
+    })
+
+def visualize_orders(request):
+    # Retrieve all pending orders
+    pending_orders = Order.objects.all()
+
+    return render(request, 'view/visualize-pending-orders.html', {
+        'pending_orders': pending_orders,
+    })

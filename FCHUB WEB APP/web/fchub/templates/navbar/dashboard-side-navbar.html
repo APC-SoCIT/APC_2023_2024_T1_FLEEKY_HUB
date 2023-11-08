@@ -57,22 +57,16 @@
                         <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
                     </a>
                     <div class="collapse" id="collapseLayoutsSelling" aria-labelledby="headingSelling" data-bs-parent="#sidenavAccordion">
-                        <nav class="sb-sidenav-menu-nested nav accordion" id="sidenavAccordionSelling">
-                            <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#pagesCollapseAuth" aria-expanded="false" aria-controls="pagesCollapseAuth">
+                        <nav class="sb-sidenav-menu-nested nav">
+                            <a class="nav-link"  href="{% url 'fchub:train-top-selling' %}" >
                                 TOP SELLING
-                                <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
                             </a>
-                            <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#pagesCollapseAuth" aria-expanded="false" aria-controls="pagesCollapseAuth">
+                            <a class="nav-link" href="{% url 'fchub:train-best-selling'%}" >
                                 BEST SELLING
-                                <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
+                               
                             </a>
-                            <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#pagesCollapseAuth" aria-expanded="false" aria-controls="pagesCollapseAuth">
+                            <a class="nav-link" href="{% url 'fchub:train-winners'%}" >
                                 WINNERS(PER-DATE)
-                                <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
-                            </a>
-                            <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#pagesCollapseAuth" aria-expanded="false" aria-controls="pagesCollapseAuth">
-                                LOSERS(PER-DATE)
-                                <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
                             </a>
                         </nav>
                     </div>
@@ -91,15 +85,15 @@
                         </nav>
                     </div>
                     <div class="sb-sidenav-menu-heading">Visualize Data</div>
-                    <a class="nav-link" href="charts.html">
+                    <a class="nav-link" href="{% url 'fchub:visualize-products' %}">
                         <div class="sb-nav-link-icon"><i class="fas fa-chart-area"></i></div>
                         Recent Products
                     </a>
-                    <a class="nav-link" href="charts.html">
+                    <a class="nav-link" href="{% url 'fchub:visualize-colors' %}">
                         <div class="sb-nav-link-icon"><i class="fa-solid fa-droplet"></i></div>
                         Recent Colors
                     </a>
-                    <a class="nav-link" href="charts.html">
+                    <a class="nav-link" href="{% url 'fchub:visualize-orders' %}">
                         <div class="sb-nav-link-icon"><i class="fas fa-table"></i></div>
                         Recent Pending Orders
                     </a>

@@ -60,11 +60,13 @@ urlpatterns = [
 
     path('fchub-data-model', views.view_fchub_model, name='fchub-data-model'),
     path('fchub/migrate-fchub-data/', views.migrate_fchub_data, name='migrate-fchub-data'),
+    path('fchub/migrate-fchub-data/', views.migrate_fchub_data, name='migrate-fchub-data'),
     path('delete-all-data/', views.delete_all_data, name='delete-all-data'),
     path('delete-fabric-data/', views.delete_fabrics_data, name='delete-fabric-data'),
     path('delete-setType-data/', views.delete_setType_data, name='delete-setType-data'),
     path('delete-color-data/', views.delete_color_data, name='delete-color-data'),
     path('delete-location-data/', views.delete_location_data, name='delete-location-data'),
+    path('delete-clean-all-data/', views.delete_clean_all_data, name='delete-clean-all-data'),
 
 
 
@@ -74,16 +76,23 @@ urlpatterns = [
     path('migrate-category-data/', views.migrate_category_data, name='migrate-category-data'),
     path('migrate-location-data/', views.migrate_location_data, name='migrate-location-data'),
     path('migrate-color-data/', views.migrate_color_data, name='migrate-color-data'),
-
+    path('migrate-training-data/', views.migrate_training_data, name='migrate-training-data'),
 
     path('sales/', views.sales_for_fabric_list, name='sales-for-fabric-list'),
-    path('sales-for-category/', views. SalesForCategoryView.as_view(), name='sales-for-category-list'),
+    path('sales-for-category/', views.SalesForCategoryView.as_view(), name='sales-for-category-list'),
     
     path('sales-for-location/', views.sales_for_location_list, name='sales-for-location'),
     path('sales-for-color/', views.SalesForColorView.as_view(), name='sales-for-color-list'),
 
 
+   path('train-top-selling/', views.TopSellingModelTrainer.as_view(), name='train-top-selling'),
+   path('train-best-selling/', views.BestSellingModelTrainer.as_view(), name='train-best-selling'),
+   path('train-winners/', views.WinnersModelTrainer.as_view(), name='train-winners'),
+   #path('train-losers/', views.LosersModelTrainer.as_view(), name='train-losers'),
 
+   path('visualize-products/', views.visualize_products, name='visualize-products'),
+   path('visualize-colors/', views.visualize_products, name='visualize-colors'),
+   path('visualize-orders/', views.visualize_products, name='visualize-orders'),
 
 
 ]

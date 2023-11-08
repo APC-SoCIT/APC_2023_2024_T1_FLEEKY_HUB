@@ -246,6 +246,27 @@ class SuccessfulOrder(models.Model):
         super().save(*args, **kwargs)
 
 
+class TrainingSets(models.Model):
+    date = models.DateField()
+    location = models.CharField(max_length=100)
+    fabric = models.CharField(max_length=250)
+    setType = models.CharField(max_length=100)
+    color = models.CharField(max_length=100)
+    qty = models.PositiveIntegerField()
+    count = models.PositiveIntegerField()
+    total_price = models.DecimalField(max_digits=10, decimal_places=2)
+
+class CleanTrainingSets(models.Model):
+    date = models.DateField()
+    location = models.CharField(max_length=100)
+    fabric = models.CharField(max_length=250)
+    setType = models.CharField(max_length=100)
+    color = models.CharField(max_length=100)
+    qty = models.PositiveIntegerField()
+    count = models.PositiveIntegerField()
+    total_price = models.DecimalField(max_digits=10, decimal_places=2)
+
+
 class SalesForWebData(models.Model):
     fabric_type = models.CharField(max_length=250, null=True)
     color = models.CharField(max_length=250, null=True)

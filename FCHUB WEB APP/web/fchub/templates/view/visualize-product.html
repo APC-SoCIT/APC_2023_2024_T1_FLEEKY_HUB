@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Product Visualization</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <h1>Product Quantity Visualization</h1>
+  <canvas id="productQuantityPieChart" width="400" height="400"></canvas>
+  <canvas id="productQuantityBarChart" width="400" height="400"></canvas>
+
+  <script>
+    // Get the products data from your Django view
+    const productData = JSON.parse('{{ products|safe }}');
+  
+    // Initialize arrays to store product names and stock (quantity)
+    const productNames = [];
+    const productStock = [];
+  
+    // Extract product names and stock (quantity) from the data
+    for (const product of productData) {
+      // Customize this part based on your data structure
+      const productName = product.name;
+      const productStock = product.stock;
+  
+      // Add the extracted data to the arrays
+      productNames.push(productName);
+      productStock.push(productStock);
+    }
+  
+    // Create a pie chart
+    const pieChartCanvas = document.getElementById('productQuantityPieChart').getContext('2d');
+    new Chart(pieChartCanvas, {
+      type: 'pie',
+      data: {
+        labels: productNames,
+        datasets: [{
+          data: productStock,
+          backgroundColor: ['#FF5733', '#36A2EB', '#FFCE56', '#FF5733', '#36A2EB'],
+        }],
+      },
+      options: {
+        responsive: true,
+      },
+    });
+  
+    // Create a bar chart
+    const barChartCanvas = document.getElementById('productQuantityBarChart').getContext('2d');
+    new Chart(barChartCanvas, {
+      type: 'bar',
+      data: {
+        labels: productNames,
+        datasets: [{
+          label: 'Product Stock (Quantity)',
+          data: productStock,
+          backgroundColor: '#36A2EB',
+        }],
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: true,
+          },
+        },
+      },
+    });
+  </script>
+  
+</body>
+</html>
