@@ -210,6 +210,11 @@ class CsvData(models.Model):
     count = models.IntegerField()
     price = models.CharField(max_length=20)
 
+
+
+
+ 
+
     def __str__(self):
         return self.customerName
 

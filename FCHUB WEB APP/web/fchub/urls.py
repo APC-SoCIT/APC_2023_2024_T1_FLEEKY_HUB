@@ -90,10 +90,11 @@ urlpatterns = [
    path('train-winners/', views.WinnersModelTrainer.as_view(), name='train-winners'),
    #path('train-losers/', views.LosersModelTrainer.as_view(), name='train-losers'),
 
-   path('visualize-products/', views.visualize_products, name='visualize-products'),
-   path('visualize-colors/', views.visualize_products, name='visualize-colors'),
-   path('visualize-orders/', views.visualize_products, name='visualize-orders'),
+   #path('visualize-products/', views.visualize_products, name='visualize-products'),
+   #path('visualize-colors/', views.visualize_products, name='visualize-colors'),
+   #path('visualize-orders/', views.visualize_products, name='visualize-orders'),
 
+   path('view-csv-data', views.CsvDataModelTrainer.as_view(), name='csv-data-view'),
 
 ]
 if settings.DEBUG:

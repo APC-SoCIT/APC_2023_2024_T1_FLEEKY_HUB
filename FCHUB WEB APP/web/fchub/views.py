@@ -17,6 +17,7 @@ from matplotlib import pyplot as plt
 from sklearn.calibration import LabelEncoder
 from sklearn.preprocessing import OneHotEncoder
 from customer.models import Address, Customer, Order, Product, OrderItem
+from web.settings import BASE_DIR
 from .models import CleanTrainingSets, CsvData, Material, FleekyAdmin, Category, SalesForCategory, SalesForColor, SalesForFabric, SalesForLocation, SalesForWebData, SuccessfulOrder, Tracker, User, TrainingSets
 from .forms import  CategoryForm, CsvUploadForm, FleekyAdminForm, MaterialForm, ProductForm, TrackerForm
 from django.contrib.auth.forms import UserCreationForm
@@ -663,13 +664,49 @@ def delete_purchase(request, purchase_id):
 
 
 
+import os
+import google.auth
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from django.shortcuts import render
+from google.oauth2 import credentials
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+
+
+def get_gmail_labels():
+    # Initialize the Gmail API using OAuth2 credentials
+    scopes = ['https://www.googleapis.com/auth/gmail.readonly']
+
+    flow = InstalledAppFlow.from_client_config({
+        "web": {
+            "client_id": "1033173894917-o3hdqj0t915jad8ev98smgdvp6eptogn.apps.googleusercontent.com",
+            "client_secret": "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",
+            "auth_uri": "https://accounts.google.com/",
+            "token_uri": "https://oauth2.googleapis.com/token",
+        },
+    }, scopes=scopes)
+
+    creds = flow.run_local_server(port=0)
+    service = build('gmail', 'v1', credentials=creds)
+
+    # List Gmail labels
+    labels = service.users().labels().list(userId='me').execute()
+    
+    return labels['labels']
+
 @login_required
 def view_manage_business(request):
     try:
         active = request.user.fleekyadmin
     except FleekyAdmin.DoesNotExist:
         active = None  # Handle the case when FleekyAdmin is missing
-    return render(request,'manage-business/manage-business.html', {'active':active})
+
+    # Get Gmail labels using the function
+    #gmail_labels = get_gmail_labels()
+    #'gmail_labels': gmail_labels
+    return render(request, 'manage-business/manage-business.html', {'active': active, })
 
 
 def parse_csv_data(csv_file):
@@ -1667,7 +1704,8 @@ class BestSellingModelTrainer(TemplateView):
 
 
 from sklearn.tree import DecisionTreeRegressor
-
+import matplotlib
+matplotlib.use('agg')
 class WinnersModelTrainer(TemplateView):
     template_name = 'manage-business/train-winners.html'
 
@@ -1822,7 +1860,9 @@ class WinnersModelTrainer(TemplateView):
             label_encoders[col].fit(df[col])
 
         return label_encoders
-    
+
+import matplotlib
+matplotlib.use('agg')
 class LosersModelTrainer(TemplateView):
     template_name = 'manage-business/train-losers.html'  # Update the template name
 
@@ -1935,29 +1975,164 @@ class LosersModelTrainer(TemplateView):
         return label_encoders
     
 
-def visualize_products(request):
-    # Retrieve all products
-    products = Product.objects.all()
+    def visualize_products(request):
+        # Retrieve all products
+        products = Product.objects.all()
 
-    # Serialize the products as JSON and pass them to the template
-    product_data = json.dumps([{'name': product.name, 'quantity': product.stock} for product in products])
+        # Extract product names
+        product_names = [product.name for product in products]
 
-    return render(request, 'view/visualize-product.html', {
-        'products': product_data,
-    })
+        # Count the occurrences of each product name
+        product_name_counts = dict(Counter(product_names))
 
-def visualize_colors(request):
-    # Retrieve all colors (assuming colors are part of the Product model)
-    colors = Product.objects.values_list('color', flat=True).distinct()
+        # Extract only the field names (attributes) of the Product model
+        field_names = [field.name for field in Product._meta.get_fields()]
 
-    return render(request, 'view/visualize-colors.html', {
-        'colors': colors,
-    })
+        return render(request, 'view/visualize-product.html', {
+            'product_name_counts': product_name_counts,
+            'field_names': field_names,
+            'products': products,
+        })
 
-def visualize_orders(request):
-    # Retrieve all pending orders
-    pending_orders = Order.objects.all()
+    def visualize_colors(request):
+        # Retrieve all colors (assuming colors are part of the Product model)
+        colors = Product.objects.values_list('color', flat=True).distinct()
 
-    return render(request, 'view/visualize-pending-orders.html', {
-        'pending_orders': pending_orders,
-    })
+        return render(request, 'view/visualize-colors.html', {
+            'colors': colors,
+        })
+
+    def visualize_orders(request):
+        # Retrieve all pending orders
+        pending_orders = Order.objects.all()
+
+        return render(request, 'view/visualize-pending-orders.html', {
+            'pending_orders': pending_orders,
+        })
+
+
+
+import matplotlib
+matplotlib.use('agg')
+class CsvDataModelTrainer(TemplateView):
+    template_name = 'manage-business/csv-data-view.html'
+
+    def get(self, request):
+        context = {
+            'message': None,
+            'models_dataset': None,
+            'raw_data': None,
+            'linear_regression_models': None,
+            'linear_regression_reports': None,
+            'linear_regression_accuracy': None,
+        }
+        return render(request, self.template_name, context)
+
+    def post(self, request):
+        data = CsvData.objects.values()
+        df = pd.DataFrame(data)
+
+        # Preprocess non-numeric columns using label encoding
+        label_encoders = self.get_label_encoders(df)
+        for col in ['month', 'fabric', 'setType']:
+            if col in df.columns:
+                df[col] = label_encoders[col].transform(df[col])
+
+        models_dataset = self.calculate_models(df)
+        cleaned_data = self.clean_data(df)
+        linear_regression_models, linear_regression_reports = self.train_linear_regression(cleaned_data)
+
+        linear_regression_accuracy = self.calculate_accuracy(cleaned_data, linear_regression_models)
+
+        context = {
+            'message': "Success: Models calculated for each combination of month, fabric, and setType",
+            'models_dataset': models_dataset,
+            'raw_data': data,
+            'linear_regression_models': linear_regression_models,
+            'linear_regression_reports': linear_regression_reports,
+            'linear_regression_accuracy': linear_regression_accuracy,
+        }
+
+        return render(request, self.template_name, context)
+
+    def calculate_models(self, df):
+        models_by_combination = []
+
+        # Group the data by unique combinations of features
+        combinations = df.groupby(['month', 'fabric', 'setType'])
+
+        for combination, data in combinations:
+            model_product = self.train_linear_regression(data)  # Train a linear regression model for each combination
+            models_by_combination.append({
+                'month': combination[0],
+                'fabric': combination[1],
+                'setType': combination[2],
+                'model_product': model_product
+            })
+
+        return models_by_combination
+
+    def clean_data(self, df):
+        for col in ['count', 'quantity', 'price']:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')  # Convert to numeric, converting non-numeric values to NaN
+
+        df.dropna(inplace=True)  # Remove rows with NaN values
+
+        return df
+
+    def train_linear_regression(self, df):
+        X = df[['month', 'fabric', 'setType', 'quantity', 'price']]
+        y = df['quantity']
+
+        if X.empty or y.empty:
+            # Handle the case where the DataFrame is empty
+            return None
+
+        dataset_size = len(df)
+
+        if dataset_size == 1:
+            test_size = None  # Set it to None for a dataset with only one sample
+        else:
+            # Adjust test_size based on dataset size, ensuring it doesn't exceed 0.5
+            test_size = min(0.5, max(0.1, 1 / dataset_size))
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
+
+        model = LinearRegression()
+        model.fit(X_train, y_train)
+
+        y_pred = model.predict(X_test)
+        mae = mean_absolute_error(y_test, y_pred)
+
+        df['predicted_quantity'] = model.predict(X)
+
+        r_squared = r2_score(y_test, y_pred)
+
+        model_product = {
+            'model_type': 'Linear Regression',
+            'r_squared': r_squared,
+            'mae': mae
+        }
+
+        return model_product
+
+
+
+    def calculate_accuracy(self, df, trained_models):
+        valid_models = [m for m in trained_models if m is not None]
+
+        if not valid_models:
+            return None
+
+        total_mae = sum(m['mae'] for m in valid_models if m['mae'] is not None)
+        accuracy = 1 - (total_mae / len(df))
+        return accuracy
+
+    def get_label_encoders(self, df):
+        label_encoders = defaultdict(LabelEncoder)
+
+        for col in ['month', 'fabric', 'setType']:
+            label_encoders[col].fit(df[col])
+
+        return label_encoders
