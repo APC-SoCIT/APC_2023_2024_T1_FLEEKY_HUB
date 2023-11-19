@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.models import User
-from .models import Category, Csv, Material, Product
+from .models import Category, Csv, FabricMaterial, Material, Product
 from django.contrib.auth.forms import UserCreationForm
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm
@@ -45,7 +45,14 @@ class FleekyAdminForm(forms.ModelForm):
 class MaterialForm(forms.ModelForm):
     class Meta:
         model = Material
-        fields = ['name', 'unit', 'price', 'description']  # Customize as needed
+        fields = ['type','name', 'qty','count', 'unit', 'description']  # Customize as needed
+
+class FabricMaterialForm(forms.ModelForm):
+    class Meta:
+        model = FabricMaterial
+        fields = ['fabric_name', 'fabric', 'color', 'fabric_fcount', 'fabric_qty', 'fabric_unit', 'fabric_description']
+
+
 
 class TrackerForm(forms.ModelForm):
     class Meta:

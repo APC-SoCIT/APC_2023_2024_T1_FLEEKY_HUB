@@ -33,9 +33,15 @@ urlpatterns = [
     path('edit-product/<int:pk>/', views.edit_product, name='edit-product'),
     
     path('materials/', views.view_materials, name='materials'),
-    path('materials/edit-material/<int:material_id>/', views.edit_material, name='edit-material'),
-    path('materials/delete-material/<int:pk>/', views.delete_material, name='delete-material'),
-    path('materials/add-material/', views.add_material, name='add-material'),
+    path('materials/edit-regular-material/<int:material_id>/', views.edit_regular_material, name='edit-regular-material'),
+    path('materials/delete-regular-material/<int:pk>/', views.delete_regular_material, name='delete-regular-material'),
+    
+    path('materials/edit-fabric-material/<int:material_id>/', views.edit_fabric_material, name='edit-fabric-material'),
+    path('materials/delete-fabric-material/<int:pk>/', views.delete_fabric_material, name='delete-fabric-material'),
+
+    path('materials/choose-material/', views.choose_material_type, name='choose-material'),
+    path('materials/add-regular-material/', views.add_regular_material, name='add-regular-material'),
+    path('materials/add-fabric-material/', views.add_fabric_material, name='add-fabric-material'),
     
     path('track-purchase/', views.view_purchase, name='track-purchase'), 
     path('track-purchase/add-purchase/', views.add_purchase, name='add-purchase'),

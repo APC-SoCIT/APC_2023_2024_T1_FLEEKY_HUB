@@ -5,7 +5,8 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils.dates import MONTHS
 from django.db.models import Max
-
+from datetime import datetime
+from django.utils.crypto import get_random_string
 
 class FleekyAdmin(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -114,29 +115,76 @@ class Product(models.Model):
 
 
 class Material(models.Model):
-    name = models.CharField(max_length=250, unique=True)
-    qty = models.CharField(max_length=250)
+    Material_Choices = (
+        ('Raw Materials Thread', 'Raw Materials Thread'),
+        ('Raw Materials Packaging', 'Raw Materials Packaging'),
+        ('Raw Materials Attachments', 'Raw Materials Attachments')
+    )
+
+    type = models.CharField(choices=Material_Choices, max_length=250)
+    name = models.CharField(max_length=250)
+    count = models.PositiveIntegerField(default=0)
+    qty = models.PositiveIntegerField(default=0)
     unit = models.CharField(max_length=250)
-    price = models.PositiveIntegerField()
     description = models.CharField(max_length=250, null=True)
-    Custom_material_id = models.CharField(max_length=6, unique=True, blank=True, editable=False)  # Assuming you want a 6-character material_id
+    Custom_material_id = models.CharField(max_length=10, unique=True, blank=True, editable=False)
 
     def __str__(self):
         return self.name
 
     def save(self, *args, **kwargs):
-        # Convert the name to lowercase before saving
         self.name = self.name.lower()
 
-        # Generate the Custom_material_id based on the first 2 letters of the name and the generated date
         if not self.Custom_material_id:
-            Custom_material_id = self.name[:2] + datetime.now().strftime("%y%m%d%H%M%S")
-            self.Custom_material_id = Custom_material_id
+            # Generate a unique ID based on type, name, and random string
+            random_string = get_random_string(length=2)
+            custom_material_id = f"{self.type[:4].lower()}{self.name[:4].lower()}{random_string}"
+            self.Custom_material_id = custom_material_id
 
         super(Material, self).save(*args, **kwargs)
 
     class Meta:
         unique_together = ('name', 'Custom_material_id')
+
+class FabricMaterial(models.Model):
+    FABRIC_CHOICES = (
+        ('Katrina', 'Katrina'),
+        ('Blockout', 'Blockout'),
+        ('Sheer', 'Sheer'),
+        ('Korean', 'Korean'),
+    )
+
+    fabric_material_id = models.CharField(max_length=10, unique=True, blank=True, editable=False)
+    fabric_name = models.CharField(max_length=250)
+    fabric = models.CharField(choices=FABRIC_CHOICES, max_length=250)
+    color = models.CharField(max_length=100)
+    
+    fabric_fcount = models.PositiveIntegerField(default=0)
+    fabric_qty = models.PositiveIntegerField(default=0)
+    fabric_unit = models.CharField(max_length=250)
+    
+    fabric_description = models.CharField(max_length=250, null=True)
+
+    def generate_fabric_material_id(self):
+        existing_fabric_materials = FabricMaterial.objects.count() + 1
+        autogen_number = str(existing_fabric_materials).zfill(2)
+
+        fabric_id = (
+            self.fabric_name[:3].lower() +
+            self.fabric[:3].lower() +
+            self.color[:2].lower() +
+            autogen_number
+        )
+        return fabric_id
+
+    def save(self, *args, **kwargs):
+        if not self.fabric_material_id:
+            self.fabric_material_id = self.generate_fabric_material_id()
+
+        if self.fabric_fcount is None:
+            self.fabric_fcount = 0
+
+        super(FabricMaterial, self).save(*args, **kwargs)
     
 class Tracker(models.Model):
     PAYMENT_CHOICES = (

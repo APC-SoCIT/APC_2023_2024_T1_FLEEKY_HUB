@@ -15,11 +15,14 @@ from django.views import View
 import joblib
 from matplotlib import pyplot as plt
 from sklearn.calibration import LabelEncoder
+from sklearn.compose import TransformedTargetRegressor
+from sklearn.discriminant_analysis import StandardScaler
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 from customer.models import Address, Customer, Order, Product, OrderItem
 from web.settings import BASE_DIR
-from .models import CleanTrainingSets, CsvData, Material, FleekyAdmin, Category, SalesForCategory, SalesForColor, SalesForFabric, SalesForLocation, SalesForWebData, SuccessfulOrder, Tracker, User, TrainingSets
-from .forms import  CategoryForm, CsvUploadForm, FleekyAdminForm, MaterialForm, ProductForm, TrackerForm
+from .models import CleanTrainingSets, CsvData, FabricMaterial, Material, FleekyAdmin, Category, SalesForCategory, SalesForColor, SalesForFabric, SalesForLocation, SalesForWebData, SuccessfulOrder, Tracker, User, TrainingSets
+from .forms import  CategoryForm, CsvUploadForm, FabricMaterialForm, FleekyAdminForm, MaterialForm, ProductForm, TrackerForm
 from django.contrib.auth.forms import UserCreationForm
 from .models import Csv  # Make sure you have this import
 import csv
@@ -73,6 +76,9 @@ from sklearn.metrics import r2_score, mean_absolute_error
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from collections import defaultdict
+from datetime import datetime
+import datetime as dt
+from django.utils.crypto import get_random_string
 # Create your views here.
 
 @login_required
@@ -524,50 +530,89 @@ def category_list(request):
 
 @login_required
 def view_materials(request):
-    materials=Material.objects.all()
-    return render(request,'view/materials.html',{'materials':materials})
+    regular_materials = Material.objects.all()
+    fabric_materials = FabricMaterial.objects.all()
+    
+    return render(
+        request,
+        'view/materials.html',
+        {'regular_materials': regular_materials, 'fabric_materials': fabric_materials}
+    )
+
+
+def choose_material_type(request):
+    return render(request, 'add/choose-material-type.html')
 
 @login_required
-def add_material(request):
+def add_regular_material(request):
     if request.method == 'POST':
         form = MaterialForm(request.POST)
+
         if form.is_valid():
             name = form.cleaned_data['name'].lower()
             custom_material_id = name[:2] + datetime.now().strftime("%y%m%d%H")
-            if Material.objects.filter(name=name).exists() or Material.objects.filter(Custom_material_id=custom_material_id).exists():
-                # Display an error message if the material name or custom_material_id already exists (case-insensitive)
+            
+            # Generate a unique ID based on name and random string
+            random_string = get_random_string(length=2)
+            custom_material_id = f"{name[:2]}{random_string}"
+
+            if Material.objects.filter(name__iexact=name).exists() or Material.objects.filter(Custom_material_id=custom_material_id).exists():
                 messages.error(request, 'Material with this name or custom material ID already exists.')
             else:
                 material = form.save(commit=False)
                 material.name = name
                 material.Custom_material_id = custom_material_id
                 material.save()
-                # Display a success message
                 messages.success(request, 'Material saved successfully.')
                 return redirect('fchub:materials')
+
         else:
-            # Display an error message if the form is not valid
             messages.error(request, 'Form is not valid.')
 
     else:
         form = MaterialForm()
 
-    return render(request, 'add/add-material.html', {'form': form})
+    return render(request, 'add/add-regular-material.html', {'form': form})
+
+
+def add_fabric_material(request):
+    if request.method == 'POST':
+        form = FabricMaterialForm(request.POST)
+
+        if form.is_valid():
+            fabric_material = form.save(commit=False)
+            fabric_name = fabric_material.fabric_name.lower()
+
+            if FabricMaterial.objects.filter(fabric_name__iexact=fabric_name).exists():
+                # Fabric material with this name already exists, show an error message
+                messages.error(request, 'Fabric material with this name already exists.')
+            else:
+                # Name doesn't exist, proceed to save the fabric material
+                fabric_material.save()
+                messages.success(request, 'Fabric material saved successfully.')
+                return redirect('fchub:materials')
+
+        else:
+            messages.error(request, 'Form is not valid.')
+
+    else:
+        form = FabricMaterialForm()
+
+    return render(request, 'add/add-fabric-material.html', {'form': form})
 
 
 @login_required
-def delete_material(request, pk):
+def delete_regular_material(request, pk):
     material = get_object_or_404(Material, id=pk)
     
     if request.method == 'POST':
         material.delete()
         return redirect('fchub:materials')  # Redirect to the list of materials after deleting
     
-    return render(request, 'delete/delete-material.html', {'material': material})
-
+    return render(request, 'delete/delete-regular-material.html', {'material': material})
 
 @login_required
-def edit_material(request, material_id):
+def edit_regular_material(request, material_id):
     material = Material.objects.get(id=material_id)
 
     if request.method == 'POST':
@@ -578,7 +623,36 @@ def edit_material(request, material_id):
     else:
         form = MaterialForm(instance=material)
 
-    return render(request, 'edit/edit-material.html', {'form': form})
+    return render(request, 'edit/edit-regular-material.html', {'form': form})
+
+@login_required
+def delete_fabric_material(request, pk):
+    fabric_material = get_object_or_404(FabricMaterial, id=pk)
+    
+    if request.method == 'POST':
+        fabric_material.delete()
+        return redirect('fchub:materials')  # Redirect to the list of materials after deleting
+    
+    return render(request, 'delete/delete-fabric-material.html', {'fabric_material': fabric_material})
+
+@login_required
+def edit_fabric_material(request, material_id):
+    fabric_material = FabricMaterial.objects.get(id=material_id)
+
+    if request.method == 'POST':
+        form = FabricMaterialForm(request.POST, instance=fabric_material)
+        if form.is_valid():
+            form.save()
+            return redirect('fchub:materials')
+    else:
+        form = FabricMaterialForm(instance=fabric_material)
+
+    return render(request, 'edit/edit-fabric-material.html', {'form': form})
+
+
+
+
+
 
 
 
@@ -2032,25 +2106,39 @@ class CsvDataModelTrainer(TemplateView):
         data = CsvData.objects.values()
         df = pd.DataFrame(data)
 
-        # Preprocess non-numeric columns using label encoding
-        label_encoders = self.get_label_encoders(df)
-        for col in ['month', 'fabric', 'setType']:
-            if col in df.columns:
-                df[col] = label_encoders[col].transform(df[col])
+        # Apply one-hot encoding to categorical columns
+        df = pd.get_dummies(df, columns=['Bryan House'], prefix=['Bryan House'])
 
-        models_dataset = self.calculate_models(df)
-        cleaned_data = self.clean_data(df)
-        linear_regression_models, linear_regression_reports = self.train_linear_regression(cleaned_data)
+        # Split the dataset into features (X) and the target (y)
+        X = df.drop(columns=['quantity'])
+        y = df['quantity']
 
-        linear_regression_accuracy = self.calculate_accuracy(cleaned_data, linear_regression_models)
+        # Split the data into training and testing sets
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+        # Create and train the Linear Regression model
+        model = LinearRegression()
+        model.fit(X_train, y_train)
+
+        # Make predictions on the test set
+        y_pred = model.predict(X_test)
+
+        # Calculate the Mean Absolute Error (MAE)
+        mae = mean_absolute_error(y_test, y_pred)
+
+        # Calculate the R-squared value (coefficient of determination)
+        r_squared = r2_score(y_test, y_pred)
+
+        model_product = {
+            'model_type': 'Linear Regression',
+            'mean_absolute_error': mae,
+            'r_squared': r_squared
+        }
 
         context = {
-            'message': "Success: Models calculated for each combination of month, fabric, and setType",
-            'models_dataset': models_dataset,
-            'raw_data': data,
-            'linear_regression_models': linear_regression_models,
-            'linear_regression_reports': linear_regression_reports,
-            'linear_regression_accuracy': linear_regression_accuracy,
+            'message': "Linear Regression model trained successfully.",
+            'model_product': model_product,
+            'raw_data': data
         }
 
         return render(request, self.template_name, context)
@@ -2058,15 +2146,13 @@ class CsvDataModelTrainer(TemplateView):
     def calculate_models(self, df):
         models_by_combination = []
 
-        # Group the data by unique combinations of features
-        combinations = df.groupby(['month', 'fabric', 'setType'])
+        combinations = df.groupby(['fabric', 'setType'])
 
         for combination, data in combinations:
-            model_product = self.train_linear_regression(data)  # Train a linear regression model for each combination
+            model_product = self.train_linear_regression(data)
             models_by_combination.append({
-                'month': combination[0],
-                'fabric': combination[1],
-                'setType': combination[2],
+                'fabric': combination[0],
+                'setType': combination[1],
                 'model_product': model_product
             })
 
@@ -2075,29 +2161,23 @@ class CsvDataModelTrainer(TemplateView):
     def clean_data(self, df):
         for col in ['count', 'quantity', 'price']:
             if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors='coerce')  # Convert to numeric, converting non-numeric values to NaN
+                df[col] = pd.to_numeric(df[col], errors='coerce')
 
-        df.dropna(inplace=True)  # Remove rows with NaN values
+        df.dropna(inplace=True)
 
         return df
 
     def train_linear_regression(self, df):
-        X = df[['month', 'fabric', 'setType', 'quantity', 'price']]
+        X = df.drop(columns=['quantity'])
         y = df['quantity']
-
-        if X.empty or y.empty:
-            # Handle the case where the DataFrame is empty
-            return None
 
         dataset_size = len(df)
 
-        if dataset_size == 1:
-            test_size = None  # Set it to None for a dataset with only one sample
+        if dataset_size <= 1:
+            X_train, X_test, y_train, y_test = X, X, y, y
         else:
-            # Adjust test_size based on dataset size, ensuring it doesn't exceed 0.5
             test_size = min(0.5, max(0.1, 1 / dataset_size))
-
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
 
         model = LinearRegression()
         model.fit(X_train, y_train)
@@ -2116,23 +2196,3 @@ class CsvDataModelTrainer(TemplateView):
         }
 
         return model_product
-
-
-
-    def calculate_accuracy(self, df, trained_models):
-        valid_models = [m for m in trained_models if m is not None]
-
-        if not valid_models:
-            return None
-
-        total_mae = sum(m['mae'] for m in valid_models if m['mae'] is not None)
-        accuracy = 1 - (total_mae / len(df))
-        return accuracy
-
-    def get_label_encoders(self, df):
-        label_encoders = defaultdict(LabelEncoder)
-
-        for col in ['month', 'fabric', 'setType']:
-            label_encoders[col].fit(df[col])
-
-        return label_encoders
