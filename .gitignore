@@ -65,3 +65,4 @@ Thumbs.db
 
 # Ignore any local development environment files
 .env.local
+
