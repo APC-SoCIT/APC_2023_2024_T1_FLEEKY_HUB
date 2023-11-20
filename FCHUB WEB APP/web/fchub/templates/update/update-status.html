@@ -152,8 +152,17 @@
     <!-- On Hand Stock Product Container -->
     <div class="card">
         <h2>On Hand Stock Products</h2>
-        <!-- Display on-hand stock products -->
-        <!-- ... -->
+        {% if ordered_fabrics %}
+            <ul>
+                {% for fabric in ordered_fabrics %}
+                    <li>
+                        {{ fabric.product.name }} - Quantity: {{ fabric.inventory_quantity }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No fabric materials found in the inventory for this order.</p>
+        {% endif %}
     </div>
 
     <!-- Materials & Fabric Materials Container -->
@@ -168,10 +177,11 @@
                     <th>Grommet</th>
                     <th>Rings</th>
                     <th>Thread</th>
+                    <th>Possible Product Count</th> <!-- New column -->
                 </tr>
             </thead>
             <tbody>
-                {% for combination in possible_combinations %}
+                {% for combination in combinations_data %}
                     <tr>
                         <td>{{ combination.Product }}</td>
                         <td>{{ combination.Fabric }}</td>
@@ -179,11 +189,14 @@
                         <td>{{ combination.Grommet }}</td>
                         <td>{{ combination.Rings }}</td>
                         <td>{{ combination.Thread }}</td>
+                        <td>{{ combination.PossibleProductCount }}</td> <!-- Display the PossibleProductCount -->
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+    
+    
     
 
 {% endblock %}

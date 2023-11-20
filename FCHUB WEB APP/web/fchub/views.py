@@ -1,4 +1,4 @@
-
+from collections import defaultdict
 import calendar
 from decimal import Decimal
 from io import TextIOWrapper
@@ -199,26 +199,242 @@ def calculate_count(setType, qty):
 
 @login_required
 def update_status(request, order_id):
-    possible_combinations = generate_possible_combinations()
     order = Order.objects.get(id=order_id)
-    customer_profile = Customer.objects.get(user=order.customer)
-    fname = customer_profile.first_name
-    lname = customer_profile.last_name
-    customer_name = fname + " " + lname
+    customer_profile = order.customer
 
     if request.method == 'POST':
         new_status = request.POST.get('new_status')
-
         if new_status == 'Order Confirmed':
             handle_order_confirmation(order)
         elif new_status == 'Delivered':
             handle_delivered_order(request, order)
             return redirect('fchub:orders')
-        
         order.status = new_status
         order.save()
 
-    return render(request, 'update/update-status.html', {'order': order, 'status_choices': Order.STATUS_CHOICES, 'possible_combinations': possible_combinations})
+    ordered_products = OrderItem.objects.filter(order=order)
+    ordered_fabrics = []
+    fabric_names = []  # Store fabric names separately
+
+    for item in ordered_products:
+        product = item.product
+        try:
+            product_instance = Product.objects.get(name=product.name)
+            inventory_quantity = product_instance.stock
+
+            ordered_fabrics.append({
+                'product': product_instance,
+                'inventory_quantity': inventory_quantity
+            })
+
+            fabric_name = product_instance.category.fabric
+            fabric_names.append(fabric_name)
+
+        except Product.DoesNotExist:
+            print(f"Product with name '{product.name}' does not exist")
+
+    # Call the get_possible_combinations function here
+    possible_combinations = get_possible_combinations(order.id)
+
+    # Create a list of dictionaries with necessary fields for the template
+    combinations_data = []
+    for combination in possible_combinations:
+        data = {
+            'Product': combination['product'].name,
+            'Fabric': combination['ingredients']['fabric_name'],
+            'ColorCount': combination['ingredients']['fabric']['count'],
+            'Grommet': combination['ingredients']['grommet']['count'],
+            'Rings': combination['ingredients']['rings']['count'],
+            'Thread': combination['ingredients']['thread']['count'],
+            'PossibleProductCount': combination['possible_count']  # New field for possible product count
+        }
+        combinations_data.append(data)
+
+    return render(request, 'update/update-status.html', {
+        'order': order,
+        'status_choices': Order.STATUS_CHOICES,
+        'fabric_names': fabric_names,
+        'ordered_fabrics': ordered_fabrics,
+        'combinations_data': combinations_data,  # Pass the updated combinations data to the template
+    })
+
+
+
+def get_possible_combinations_with_count(order_id):
+    order = Order.objects.get(id=order_id)
+    ordered_products = OrderItem.objects.filter(order=order)
+
+    available_materials = defaultdict(int)
+    for material in Material.objects.all():
+        available_materials[material.name] = material.count
+
+    available_fabric_materials = defaultdict(int)
+    for fabric_material in FabricMaterial.objects.all():
+        available_fabric_materials[fabric_material.fabric_name] += fabric_material.fabric_fcount
+
+    possible_combinations = []
+    for item in ordered_products:
+        product = item.product
+        ingredients_needed = get_ingredients_needed(product)
+        if can_produce_product(ingredients_needed, available_materials, available_fabric_materials):
+            count = calculate_possible_product_count(product, ingredients_needed, available_materials, available_fabric_materials)
+            
+            possible_combinations.append({
+                'product': product,
+                'ingredients': ingredients_needed,
+                'possible_count': count
+            })
+
+    return possible_combinations
+
+
+def calculate_possible_product_count(product, ingredients_needed, available_materials, available_fabric_materials):
+    min_possible_count = float('inf')  # Initialize with a large value
+
+    for material, details in ingredients_needed.items():
+        if material == 'fabric_name':
+            continue  # Skip processing fabric name, handle other materials
+
+        if details is not None and 'count' in details:  # Check if details is not None and 'count' key exists
+            count_needed = details['count']
+
+            if material in available_materials:
+                available_count = available_materials[material]
+                if available_count > 0:
+                    possible_count = available_count // count_needed
+                    if possible_count < min_possible_count:
+                        min_possible_count = possible_count
+
+    if 'fabric' in ingredients_needed:
+        fabric_details = ingredients_needed['fabric']
+        if fabric_details is not None and 'count' in fabric_details:  # Check if fabric_details is not None and 'count' key exists
+            count_needed = fabric_details['count']
+            fabric_name = ingredients_needed['fabric_name']
+
+            if fabric_name in available_fabric_materials:
+                available_fabric_count = available_fabric_materials[fabric_name]
+                if available_fabric_count > 0:
+                    possible_fabric_count = available_fabric_count // count_needed
+                    if possible_fabric_count < min_possible_count:
+                        min_possible_count = possible_fabric_count
+
+    return min_possible_count
+
+
+
+def get_ingredients_needed(product, thread_colors):
+    product_category = product.category
+    curtain_ingredients = CurtainIngredients.objects.filter(fabric=product_category.fabric)
+    ingredients_needed = {}
+    
+    for ingredient in curtain_ingredients:
+        # Extract color from the ingredient's fabric name
+        fabric_name = ingredient.fabric.lower()
+        fabric_color = None
+        
+        for color in thread_colors:
+            if color in fabric_name:
+                fabric_color = color
+                break
+
+        ingredients_needed = {
+            'fabric_name': ingredient.fabric,
+            'fabric_color': fabric_color,  # Include the extracted fabric color
+            'fabric': {
+                'count': ingredient.fabric_count,
+                'unit': ingredient.fabric_unit
+            },
+            'grommet': {
+                'count': ingredient.grommet_count,
+                'unit': ingredient.grommet_unit
+            },
+            'rings': {
+                'count': ingredient.rings_count,
+                'unit': ingredient.rings_unit
+            },
+            'thread': {
+                'count': ingredient.thread_count,
+                'unit': ingredient.thread_unit
+            },
+            'length': {
+                'count': ingredient.length,
+                'unit': ingredient.length_unit
+            }
+        }
+
+    return ingredients_needed
+
+
+def get_possible_combinations(order_id):
+    order = Order.objects.get(id=order_id)
+    ordered_products = OrderItem.objects.filter(order=order)
+
+    available_materials = defaultdict(int)
+    for material in Material.objects.all():
+        available_materials[material.name] = material.count
+
+    available_fabric_materials = defaultdict(int)
+    for fabric_material in FabricMaterial.objects.all():
+        available_fabric_materials[fabric_material.fabric_name] += fabric_material.fabric_fcount
+
+    thread_colors = extract_colors_from_thread_materials()  # Extract colors from Raw Materials Thread
+
+    possible_combinations = []
+    for item in ordered_products:
+        product = item.product
+        ingredients_needed = get_ingredients_needed(product, thread_colors)
+        if can_produce_product(ingredients_needed, available_materials, available_fabric_materials):
+            possible_product_count = calculate_possible_product_count(
+                product, ingredients_needed, available_materials, available_fabric_materials
+            )
+            possible_combinations.append({
+                'product': product,
+                'ingredients': ingredients_needed,
+                'possible_count': possible_product_count
+            })
+
+    return possible_combinations
+
+
+def can_produce_product(ingredients_needed, available_materials, available_fabric_materials):
+    for material, details in ingredients_needed.items():
+        if material == 'fabric_name':
+            fabric_name = details
+            continue  # Skip processing fabric name, handle other materials
+            
+        if details is not None and 'count' in details:  # Check if details is not None and 'count' key exists
+            count_needed = details['count']
+            if material in available_materials:
+                if available_materials[material] < count_needed:
+                    return False  # Not enough of this material in stock
+
+    if 'fabric' in ingredients_needed:
+        fabric_details = ingredients_needed['fabric']
+        if fabric_details is not None and 'count' in fabric_details:  # Check if fabric_details is not None and 'count' key exists
+            count_needed = fabric_details['count']
+            fabric_unit = fabric_details['unit']
+            fabric_name = ingredients_needed['fabric_name']
+            
+            if fabric_name in available_fabric_materials:
+                if available_fabric_materials[fabric_name] < count_needed:
+                    return False  # Not enough fabric material in stock
+
+    return True
+
+
+def extract_colors_from_thread_materials():
+    thread_materials = Material.objects.filter(type='Raw Materials Thread')
+    colors = set()
+
+    for material in thread_materials:
+        # Assuming the name has the color as the first word before space
+        color = material.name.split(' ')[0].lower()
+        colors.add(color)
+
+        print(colors)
+
+    return colors
+
 
 def handle_order_confirmation(order):
     order_items = order.order_items.all()
