@@ -1,9 +1,10 @@
 # Ignore Python bytecode cache directories
-__pycache/
+__pycache__/
 
 # Ignore compiled Python files
 *.pyc
 *.pyo
+*.pyd
 
 # Ignore SQLite database files
 *.sqlite3
@@ -41,8 +42,26 @@ local_settings.py
 # Ignore coverage report files if using a code coverage tool
 .coverage
 
+# Ignore Django migration files
+*/migrations/
 
-./migrations
-*./migrations
-/migrations
+# Ignore Django static files directory (if managed outside of the project)
+static/
 
+# Ignore Django media files directory (user-uploaded content)
+media/
+
+# Ignore database configurations or backup files
+*.db
+*.bak
+
+# Ignore system-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore editor/IDE-specific files
+*.swp
+*.swo
+
+# Ignore any local development environment files
+.env.local

@@ -31,7 +31,17 @@
                     <span class="navbar-toggler-icon"></span>
                 </button>
                 <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                    <ul class="navbar-nav ml-auto"> 
+                    <ul class="navbar-nav ml-auto">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="productsDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                Item
+                            </a>
+                            <div class="dropdown-menu" aria-labelledby="productsDropdown">
+                                <a class="dropdown-item" href="{% url 'fchub:inventory'  %}">Manage Inventory</a>
+                                <a class="dropdown-item" href="{% url 'fchub:materials'  %}">Manage Materials</a>
+                                <a class="dropdown-item" href="{% url 'fchub:curtain-ingredients'  %}">Manage Curtain Ingredients</a>
+                            </div>
+                        </li> 
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'fchub:dashboard'%}">Dashboard</a>
                         </li>
@@ -47,7 +57,6 @@
                             </a>
                             <div class="dropdown-menu" aria-labelledby="productsDropdown">
                                 <a class="dropdown-item" href="{% url 'fchub:products'  %}">Manage Products</a>
-                                <a class="dropdown-item" href="{% url 'fchub:materials'  %}">Manage Materials</a>
                                 <a class="dropdown-item" href="{% url 'fchub:category'  %}">Manage Category</a>
                             </div>
                         </li>

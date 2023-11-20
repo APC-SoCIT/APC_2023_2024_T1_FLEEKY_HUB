@@ -18,9 +18,7 @@ urlpatterns = [
     path('generate-invoice/<int:order_id>/', views.generate_invoice, name='generate-invoice'),
     path('full-details/<int:order_id>/', views.view_full_details, name='full-details'),
 
-    
-    
-    
+
     path('category/', views.category_list, name='category'),
     path('category/add', views.add_category, name='add-category'),
     path('category/edit/<int:category_id>/', views.edit_category, name='edit-category'),
@@ -101,6 +99,14 @@ urlpatterns = [
    #path('visualize-orders/', views.visualize_products, name='visualize-orders'),
 
    path('view-csv-data', views.CsvDataModelTrainer.as_view(), name='csv-data-view'),
+   
+   path('inventory/', views.inventory_view, name='inventory'),
+
+   path('curtain-ingredients/', views.curtain_ingredients_view, name='curtain-ingredients'), 
+   path('curtain-ingredients/add-ingredients', views.add_ingredients, name='add-ingredients'), 
+   path('curtain-ingredients/edit-ingredient/<int:ingredient_id>/', views.edit_ingredient, name='edit-ingredient'),
+   path('curtain-ingredients/delete-ingredient/<int:ingredient_id>/', views.delete_ingredient, name='delete-ingredient'),
+
 
 ]
 if settings.DEBUG:

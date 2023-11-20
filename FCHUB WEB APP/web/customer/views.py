@@ -727,3 +727,5 @@ def generate_invoice(request, order_id):
         return response
 
     return HttpResponse("Error rendering PDF", status=500)
+
+

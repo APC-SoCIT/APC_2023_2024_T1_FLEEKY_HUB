@@ -3,6 +3,7 @@ import calendar
 from decimal import Decimal
 from io import TextIOWrapper
 import io
+from itertools import product
 import json
 from django.db.models import F, Sum
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect, JsonResponse
@@ -21,8 +22,8 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 from customer.models import Address, Customer, Order, Product, OrderItem
 from web.settings import BASE_DIR
-from .models import CleanTrainingSets, CsvData, FabricMaterial, Material, FleekyAdmin, Category, SalesForCategory, SalesForColor, SalesForFabric, SalesForLocation, SalesForWebData, SuccessfulOrder, Tracker, User, TrainingSets
-from .forms import  CategoryForm, CsvUploadForm, FabricMaterialForm, FleekyAdminForm, MaterialForm, ProductForm, TrackerForm
+from .models import CleanTrainingSets, CsvData, CurtainIngredients, FabricMaterial, Inventory, Material, FleekyAdmin, Category, SalesForCategory, SalesForColor, SalesForFabric, SalesForLocation, SalesForWebData, SuccessfulOrder, Tracker, User, TrainingSets
+from .forms import  CategoryForm, CsvUploadForm, CurtainIngredientsForm,FabricMaterialForm, FleekyAdminForm, MaterialForm, ProductForm, TrackerForm
 from django.contrib.auth.forms import UserCreationForm
 from .models import Csv  # Make sure you have this import
 import csv
@@ -198,87 +199,103 @@ def calculate_count(setType, qty):
 
 @login_required
 def update_status(request, order_id):
-    # Get the order object based on the order_id
+    possible_combinations = generate_possible_combinations()
     order = Order.objects.get(id=order_id)
     customer_profile = Customer.objects.get(user=order.customer)
     fname = customer_profile.first_name
     lname = customer_profile.last_name
     customer_name = fname + " " + lname
 
-    # Check if the request method is POST
     if request.method == 'POST':
         new_status = request.POST.get('new_status')
 
-        # Update the order status
+        if new_status == 'Order Confirmed':
+            handle_order_confirmation(order)
+        elif new_status == 'Delivered':
+            handle_delivered_order(request, order)
+            return redirect('fchub:orders')
+        
         order.status = new_status
         order.save()
 
-        # Check if the new status is "Delivered"
-        if new_status == 'Delivered':
-            # Check if a SuccessfulOrder with the same success_order_id already exists
-            existing_successful_order = SuccessfulOrder.objects.filter(success_order_id=order.order_number).first()
+    return render(request, 'update/update-status.html', {'order': order, 'status_choices': Order.STATUS_CHOICES, 'possible_combinations': possible_combinations})
 
-            if existing_successful_order:
-                # Prompt the user that it's already marked as delivered
-                return render(request, 'update/already-delivered.html', {'order': order})
+def handle_order_confirmation(order):
+    order_items = order.order_items.all()
 
-            # Retrieve additional information from related objects
-            customer = order.customer
-            address = order.shipping_address
-            order_items = order.order_items.all()  # Retrieve all order items in the order
+    products_to_update = []
+    purchased_quantities = []
 
-            # Aggregate fabric, setType, and color information from all products
-            fabrics = ", ".join(order_item.product.category.fabric for order_item in order_items)
-            setType = ", ".join(order_item.product.category.setType for order_item in order_items)
-            colors = ", ".join(order_item.product.color for order_item in order_items)
+    for order_item in order_items:
+        product = order_item.product
+        products_to_update.append(product)
+        purchased_quantities.append(order_item.quantity)
 
-            # Calculate the count based on set_type and qty for the ordered products
-            total_count = sum(order_item.quantity for order_item in order_items)
-            total_count_for_set_type = sum(calculate_count(order_item.product.category.setType, order_item.quantity) for order_item in order_items)
+    with transaction.atomic():
+        for idx, product in enumerate(products_to_update):
+            purchased_quantity = purchased_quantities[idx]
+            product.stock -= purchased_quantity
+            product.save()
 
-            # Calculate the price as the total_price of the order
-            total_price = order.total_price
 
-            # Create a SuccessfulOrder instance
-            successful_order = SuccessfulOrder(
-                order_number=order.order_number,
-                date=order.order_date.date(),
-                location=address.city + ", " + address.province,
-                name=customer_name,
+def handle_delivered_order(request, order):
+    existing_successful_order = SuccessfulOrder.objects.filter(success_order_id=order.order_number).first()
 
-                fabric=fabrics,
-                setType=setType,
-                color=colors,
-                qty=total_count,  # Quantity of each product
-                count=total_count_for_set_type,  # Total count based on set type and quantity
-                price=total_price
-            )
+    if existing_successful_order:
+        message = f"The order {order.order_number} has already been marked as delivered."
+        return HttpResponse(message)
 
-            # Generate the success_order_id without foreign key relationship
-            last_5_order_number = order.order_number[-5:]
-            customer_name = customer.first_name[:3]
-            username = customer.username[:3]
-            location = address.detailed_address[:3]
-            successful_order.success_order_id = f'SuccessfulOrder-{last_5_order_number}-{customer_name}-{username}-{location}'
-            successful_order.save()
+    customer_profile = Customer.objects.get(user=order.customer)
+    fname = customer_profile.first_name
+    lname = customer_profile.last_name
+    customer_name = fname + " " + lname
 
-            trainingsets = TrainingSets(
-                date=order.order_date.date(),
-                location=address.city + ", " + address.province,
-                fabric=fabrics,
-                setType=setType,
-                color=colors,
-                qty=total_count,  # Quantity of each product
-                count=total_count_for_set_type,  # Total count based on set type and quantity
-                total_price=total_price
-            )
-            trainingsets.save()
+    customer = order.customer
+    address = order.shipping_address
+    order_items = order.order_items.all()
 
-        # Redirect back to the 'update-status' view with the updated order_id
-        return redirect('fchub:orders')
+    fabrics = ", ".join(order_item.product.category.fabric for order_item in order_items)
+    setType = ", ".join(order_item.product.category.setType for order_item in order_items)
+    colors = ", ".join(order_item.product.color for order_item in order_items)
 
-    # Pass STATUS_CHOICES to the template
-    return render(request, 'update/update-status.html', {'order': order, 'status_choices': Order.STATUS_CHOICES})
+    total_count = sum(order_item.quantity for order_item in order_items)
+    total_count_for_set_type = sum(calculate_count(order_item.product.category.setType, order_item.quantity) for order_item in order_items)
+
+    total_price = order.total_price
+
+    successful_order = SuccessfulOrder(
+        order_number=order.order_number,
+        date=order.order_date.date(),
+        location=address.city + ", " + address.province,
+        name=customer_name,
+
+        fabric=fabrics,
+        setType=setType,
+        color=colors,
+        qty=total_count,
+        count=total_count_for_set_type,
+        price=total_price
+    )
+
+    last_5_order_number = order.order_number[-5:]
+    customer_name = customer.first_name[:3]
+    username = customer.username[:3]
+    location = address.detailed_address[:3]
+    successful_order.success_order_id = f'SuccessfulOrder-{last_5_order_number}-{customer_name}-{username}-{location}'
+    successful_order.save()
+
+    trainingsets = TrainingSets(
+        date=order.order_date.date(),
+        location=address.city + ", " + address.province,
+        fabric=fabrics,
+        setType=setType,
+        color=colors,
+        qty=total_count,
+        count=total_count_for_set_type,
+        total_price=total_price
+    )
+    trainingsets.save()
+
 
 
 
@@ -2196,3 +2213,177 @@ class CsvDataModelTrainer(TemplateView):
         }
 
         return model_product
+    
+
+
+def inventory_view(request):
+    materials = Material.objects.all()
+    fabric_materials = FabricMaterial.objects.all()
+    products = Product.objects.all()
+
+    return render(request, 'view/inventory.html', {
+        'materials': materials,
+        'fabric_materials': fabric_materials,
+        'products': products,
+    })
+
+
+def generate_possible_combinations():
+    # Fetch all available materials
+    raw_materials_thread = Material.objects.filter(type='Raw Materials Thread').first()
+    raw_materials_packaging = Material.objects.filter(type='Raw Materials Packaging').first()
+    raw_materials_attachments = Material.objects.filter(type='Raw Materials Attachments').first()
+
+    # Fetch all fabric materials
+    fabric_materials = FabricMaterial.objects.all()
+
+    # Define required quantities for each product
+    products = [
+        {
+            'name': 'Blockout Curtain',
+            'materials': {
+                'Fabric': 'Blockout',
+                'Grommet': 60,
+                'Rings': 8,
+                'Thread': 3375
+            }
+        },
+        {
+            'name': 'Katrina Curtain',
+            'materials': {
+                'Fabric': 'Katrina',
+                'Grommet': 60,
+                'Rings': 8,
+                'Thread': 2684
+            }
+        },
+        {
+            'name': 'Brocade Curtain',
+            'materials': {
+                'Fabric': 'Brocade',
+                'Grommet': 60,
+                'Rings': 8,
+                'Thread': 2684
+            }
+        },        
+        {
+            'name': 'Sheer Curtain',
+            'materials': {
+                'Fabric': 'Sheer',
+                'Grommet': 60,
+                'Rings': 8,
+                'Thread': 2684
+            }
+        },        
+        
+        
+    ]
+
+    available_materials = {
+        'Fabric': {
+            fabric.fabric: {
+                'count': fabric.fabric_fcount,
+                'qty': fabric.fabric_qty
+            }
+            for fabric in fabric_materials
+        },
+        'Grommet': raw_materials_packaging.count,
+        'Rings': raw_materials_attachments.count,
+        'Thread': raw_materials_thread.qty
+    }
+
+    possible_combinations = []
+
+    for product_info in products:
+        product_name = product_info['name']
+        required_materials = product_info['materials']
+        possible_combinations_for_product = []
+
+        fabric_name = required_materials['Fabric']
+        fabric_data = available_materials['Fabric'].get(fabric_name)
+
+        # Check if the required fabric is available
+        if fabric_data and fabric_data['count'] > 0 and fabric_data['qty'] > 0:
+            # Check if there are enough available materials to create the product
+            enough_materials = (
+                available_materials['Grommet'] >= required_materials['Grommet'] and
+                available_materials['Rings'] >= required_materials['Rings'] and
+                available_materials['Thread'] >= required_materials['Thread']
+            )
+
+            # Generate possible combinations if enough materials are available
+            if enough_materials:
+                material_values = [
+                    range(0, fabric_data['count'] + 1),
+                    range(0, available_materials['Grommet'] // required_materials['Grommet'] + 1),
+                    range(0, available_materials['Rings'] // required_materials['Rings'] + 1),
+                    range(0, available_materials['Thread'] // required_materials['Thread'] + 1)
+                ]
+
+                for combination in product(*material_values):
+                    combination_dict = {
+                        'Product': product_name,
+                        'Fabric': fabric_name,
+                        'ColorCount': combination[0],
+                        'Grommet': combination[1],
+                        'Rings': combination[2],
+                        'Thread': combination[3]
+                    }
+                    possible_combinations_for_product.append(combination_dict)
+
+        possible_combinations.extend(possible_combinations_for_product)
+
+    return possible_combinations
+
+
+
+def curtain_ingredients_view(request):
+    curtain_ingredients = CurtainIngredients.objects.all()  # Fetch all curtain ingredients
+    return render(request, 'view/ingredients.html', {'curtain_ingredients': curtain_ingredients})
+
+
+
+def add_ingredients(request):
+    if request.method == 'POST':
+        form = CurtainIngredientsForm(request.POST)
+        if form.is_valid():
+            name = form.cleaned_data['name']
+            fabric = form.cleaned_data['fabric']
+
+            # Check if the ingredient with the same name and fabric already exists
+            if CurtainIngredients.objects.filter(name=name, fabric=fabric).exists():
+                messages.error(request, 'Ingredient already exists!')
+            else:
+                curtain_ingredient = form.save(commit=False)
+                custom_id = curtain_ingredient.generate_curtain_custom_id()
+                curtain_ingredient.curtain_custom_id = custom_id
+                curtain_ingredient.save()
+                return redirect('fchub:curtain-ingredients')
+    else:
+        form = CurtainIngredientsForm()
+    
+    return render(request, 'add/add-ingredients.html', {'form': form})
+
+
+def edit_ingredient(request, ingredient_id):
+    ingredient = get_object_or_404(CurtainIngredients, pk=ingredient_id)
+
+    if request.method == 'POST':
+        form = CurtainIngredientsForm(request.POST, instance=ingredient)
+        if form.is_valid():
+            form.save()
+            return redirect('fchub:curtain-ingredients')
+    else:
+        form = CurtainIngredientsForm(instance=ingredient)
+    
+    return render(request, 'edit/edit-ingredient.html', {'form': form})
+
+
+def delete_ingredient(request, ingredient_id):
+    ingredient = get_object_or_404(CurtainIngredients, pk=ingredient_id)
+    if request.method == 'POST':
+        ingredient.delete()
+        messages.success(request, 'Ingredient deleted successfully!')
+        return redirect('fchub:curtain-ingredients')
+    
+    return render(request, 'delete/delete-ingredient.html', {'ingredient': ingredient})

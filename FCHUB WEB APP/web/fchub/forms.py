@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.models import User
-from .models import Category, Csv, FabricMaterial, Material, Product
+from .models import Category, Csv, CurtainIngredients,FabricMaterial, Material, Product
 from django.contrib.auth.forms import UserCreationForm
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm
@@ -52,6 +52,12 @@ class FabricMaterialForm(forms.ModelForm):
         model = FabricMaterial
         fields = ['fabric_name', 'fabric', 'color', 'fabric_fcount', 'fabric_qty', 'fabric_unit', 'fabric_description']
 
+class CurtainIngredientsForm(forms.ModelForm):
+    class Meta:
+        model = CurtainIngredients
+        fields = ['name','fabric', 'fabric_count', 'fabric_unit', 'grommet_count', 'grommet_unit', 'rings_count', 'rings_unit', 'thread_count', 'thread_unit', 'length', 'length_unit']
+        exclude = ['custom_id']
+        # Customize widgets or labels if needed
 
 
 class TrackerForm(forms.ModelForm):

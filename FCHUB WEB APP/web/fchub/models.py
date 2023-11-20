@@ -8,6 +8,7 @@ from django.db.models import Max
 from datetime import datetime
 from django.utils.crypto import get_random_string
 
+
 class FleekyAdmin(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     first_name = models.CharField('First Name', max_length=50)
@@ -152,6 +153,7 @@ class FabricMaterial(models.Model):
         ('Blockout', 'Blockout'),
         ('Sheer', 'Sheer'),
         ('Korean', 'Korean'),
+        ('Brocade', 'Brocade'),
     )
 
     fabric_material_id = models.CharField(max_length=10, unique=True, blank=True, editable=False)
@@ -164,6 +166,8 @@ class FabricMaterial(models.Model):
     fabric_unit = models.CharField(max_length=250)
     
     fabric_description = models.CharField(max_length=250, null=True)
+    def __str__(self):
+        return self.fabric
 
     def generate_fabric_material_id(self):
         existing_fabric_materials = FabricMaterial.objects.count() + 1
@@ -186,6 +190,66 @@ class FabricMaterial(models.Model):
 
         super(FabricMaterial, self).save(*args, **kwargs)
     
+class CurtainIngredients(models.Model):
+    FABRIC_CHOICES = (
+        ('Katrina', 'Katrina'),
+        ('Blockout', 'Blockout'),
+        ('Sheer', 'Sheer'),
+        ('Korean', 'Korean'),
+        ('Brocade', 'Brocade'),
+    )
+
+    name = models.CharField(max_length=100)
+    fabric = models.CharField(choices=FABRIC_CHOICES, max_length=250)
+    fabric_count = models.PositiveIntegerField(default=0)
+    fabric_unit = models.CharField(max_length=100)
+    grommet_count = models.PositiveIntegerField(default=0)
+    grommet_unit = models.CharField(max_length=100)
+    rings_count = models.PositiveIntegerField(default=0)
+    rings_unit = models.CharField(max_length=100)
+    thread_count = models.PositiveIntegerField(default=0)
+    thread_unit = models.CharField(max_length=100)
+    length = models.PositiveIntegerField(default=0)  # Length of the curtain
+    length_unit = models.CharField(max_length=100)
+    curtain_custom_id = models.CharField(max_length=15, unique=True, blank=True, editable=False)
+
+    def generate_curtain_custom_id(self):
+        fabric_name = self.fabric[:4].lower() if self.fabric else ""
+        name_letters = self.name[:3].lower() if self.name else ""
+        incremental_numbers = str(self.pk).zfill(2)
+        incremental_number = str(CurtainIngredients.objects.count() + 1).zfill(1)
+        custom_id = f"{fabric_name}{name_letters}{incremental_number}"
+        return custom_id
+
+    def save(self, *args, **kwargs):
+        if not self.curtain_custom_id:
+            self.curtain_custom_id = self.generate_curtain_custom_id()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Curtain Ingredients: {self.fabric}, Grommets: {self.grommet_count}, Rings: {self.rings_count}, Thread: {self.thread_count}"
+
+
+class Inventory(models.Model):
+    material = models.ForeignKey(Material, on_delete=models.CASCADE, null=True, blank=True)
+    fabric_material = models.ForeignKey(FabricMaterial, on_delete=models.CASCADE, null=True, blank=True)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, null=True, blank=True)
+    quantity = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        if self.material:
+            return f"Material Inventory: {self.material.name} - {self.quantity}"
+        elif self.fabric_material:
+            return f"Fabric Material Inventory: {self.fabric_material.fabric_name} - {self.quantity}"
+        elif self.product:
+            return f"Product Stock: {self.product.name} - {self.quantity}"
+        return "Inventory Item"
+
+
+
+
+
+
 class Tracker(models.Model):
     PAYMENT_CHOICES = (
         ('GCASH', 'GCASH'),
@@ -352,3 +416,18 @@ class SalesForColor(models.Model):
     color = models.CharField(max_length=100)
     date = models.DateField()
 
+class ToDo(models.Model):
+    TASK_CHOICES = [
+        ('SEW', 'Sew the curtains'),
+        ('PACKAGE', 'Package the order'),
+        # Add other tasks as needed
+    ]
+
+    task = models.CharField(max_length=20, choices=TASK_CHOICES)
+    description = models.TextField()
+    status = models.CharField(max_length=10, default='TODO')  # 'TODO', 'WORKING', 'DONE'
+    comments = models.TextField(blank=True, null=True)
+
+    # You can add more fields as needed, like related to customer/order etc.
+    def __str__(self):
+        return f"{self.get_task_display()} - {self.status}"

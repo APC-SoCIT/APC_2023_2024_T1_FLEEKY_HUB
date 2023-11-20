@@ -1,0 +1,110 @@
+{% extends 'navbar/dashboard-navbar.html' %}
+
+{% block content %}
+<div class="container">
+    <h1>Inventory Summary</h1>
+
+    <!-- Materials Inventory Card -->
+    <div class="card">
+        <div class="card-header">
+            Materials Inventory
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Type</th>
+                        <th>Name</th>
+                        <th>Unit</th>
+                        <th>Count</th>
+                        <th>Description</th>
+                        <th>Quantity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for material in materials %}
+                    <tr>
+                        <td>{{ material.id }}</td>
+                        <td>{{ material.type }}</td>
+                        <td>{{ material.name }}</td>
+                        <td>{{ material.unit }}</td>
+                        <td>{{ material.count }}</td>
+                        <td>{{ material.description }}</td>
+                        <td>{{ material.qty }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Fabric Materials Inventory Card -->
+    <div class="card">
+        <div class="card-header">
+            Fabric Materials Inventory
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Fabric Name</th>
+                        <th>Fabric</th>
+                        <th>Color</th>
+                        <th>Count</th>
+                        <th>Description</th>
+                        <th>Quantity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fabric_material in fabric_materials %}
+                    <tr>
+                        <td>{{ fabric_material.id }}</td>
+                        <td>{{ fabric_material.fabric_name }}</td>
+                        <td>{{ fabric_material.fabric }}</td>
+                        <td>{{ fabric_material.color }}</td>
+                        <td>{{ fabric_material.fabric_fcount }}</td>
+                        <td>{{ fabric_material.fabric_description }}</td>
+                        <td>{{ fabric_material.fabric_qty }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Products Stock Card -->
+    <div class="card">
+        <div class="card-header">
+            Products Stock
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Color</th>
+                        <th>Category</th>
+                        <th>Stock</th>
+                        <!-- Add more fields if needed -->
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    <tr>
+                        <td>{{ product.id }}</td>
+                        <td>{{ product.name }}</td>
+                        <td>{{ product.color }}</td>
+                        <td>{{ product.category }}</td>
+                        <td>{{ product.stock }}</td>
+                        <!-- Add more fields as per your model -->
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
