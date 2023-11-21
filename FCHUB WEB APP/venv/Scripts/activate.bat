@@ -8,7 +8,7 @@ if defined _OLD_CODEPAGE (
     "%SystemRoot%\System32\chcp.com" 65001 > nul
 )
 
-set VIRTUAL_ENV=D:\Projects\SOFTDEV\FCHUB-REVISIONV5\venv
+set VIRTUAL_ENV=C:\Users\Neil Garcia\Downloads\fleekyh\nov 20\APC_2023_2024_T1_FLEEKY_HUB\FCHUB WEB APP\venv
 
 if not defined PROMPT set PROMPT=$P$G
 

@@ -23,16 +23,19 @@ urlpatterns = [
     path('category/add', views.add_category, name='add-category'),
     path('category/edit/<int:category_id>/', views.edit_category, name='edit-category'),
     path('category/delete/<int:category_id>/', views.delete_category, name='delete-category'),
+    path('category/duplicate/<int:category_id>/', views.duplicate_category, name='duplicate-category'),
     
 
     path('products/', views.view_product, name='products'),
     path('products/add-products/', views.add_product, name='add-products'),
     path('products/delete-product/<int:pk>', views.delete_product,name='delete-product'),
     path('edit-product/<int:pk>/', views.edit_product, name='edit-product'),
+    path('products/duplicate/<int:product_id>/', views.duplicate_product, name='duplicate-product'),
     
     path('materials/', views.view_materials, name='materials'),
     path('materials/edit-regular-material/<int:material_id>/', views.edit_regular_material, name='edit-regular-material'),
     path('materials/delete-regular-material/<int:pk>/', views.delete_regular_material, name='delete-regular-material'),
+    path('materials/duplicate-regular-material/<int:material_id>/', views.duplicate_regular_material, name='duplicate-regular-material'),
     
     path('materials/edit-fabric-material/<int:material_id>/', views.edit_fabric_material, name='edit-fabric-material'),
     path('materials/delete-fabric-material/<int:pk>/', views.delete_fabric_material, name='delete-fabric-material'),
@@ -40,7 +43,9 @@ urlpatterns = [
     path('materials/choose-material/', views.choose_material_type, name='choose-material'),
     path('materials/add-regular-material/', views.add_regular_material, name='add-regular-material'),
     path('materials/add-fabric-material/', views.add_fabric_material, name='add-fabric-material'),
-    
+    path('materials/duplicate-fabric-material/<int:fabric_material_id>/', views.duplicate_fabric_material, name='duplicate-fabric-material'),
+
+
     path('track-purchase/', views.view_purchase, name='track-purchase'), 
     path('track-purchase/add-purchase/', views.add_purchase, name='add-purchase'),
     path('track-purchase/edit-purchase/<int:purchase_id>/', views.edit_purchase, name='edit-purchase'),

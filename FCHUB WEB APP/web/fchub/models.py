@@ -114,7 +114,6 @@ class Product(models.Model):
 
 
 
-
 class Material(models.Model):
     Material_Choices = (
         ('Raw Materials Thread', 'Raw Materials Thread'),
@@ -130,22 +129,34 @@ class Material(models.Model):
     description = models.CharField(max_length=250, null=True)
     Custom_material_id = models.CharField(max_length=10, unique=True, blank=True, editable=False)
 
-    def __str__(self):
-        return self.name
+    def generate_custom_material_id(self):
+        # Exclude "raw" from the name when generating the custom ID
+        name_without_raw = self.name.replace("Raw", "").replace("raw", "")
+        
+        # Generate a unique ID based on type, name, and random string
+        random_string = get_random_string(length=2)
+        custom_material_id = f"{self.type[:4].lower()}{name_without_raw[:4]}{random_string}"
+        return custom_material_id
 
     def save(self, *args, **kwargs):
-        self.name = self.name.lower()
-
         if not self.Custom_material_id:
+            # Save the original case of the material name
+            original_name = self.name
+
+            # Convert name to lowercase and remove "raw" if present
+            name_without_raw = original_name.replace("Raw", "").replace("raw", "")
+            
             # Generate a unique ID based on type, name, and random string
             random_string = get_random_string(length=2)
-            custom_material_id = f"{self.type[:4].lower()}{self.name[:4].lower()}{random_string}"
+            custom_material_id = f"{self.type[:4].lower()}{name_without_raw[:4]}{random_string}"
+
             self.Custom_material_id = custom_material_id
 
         super(Material, self).save(*args, **kwargs)
 
     class Meta:
         unique_together = ('name', 'Custom_material_id')
+        
 
 class FabricMaterial(models.Model):
     FABRIC_CHOICES = (
