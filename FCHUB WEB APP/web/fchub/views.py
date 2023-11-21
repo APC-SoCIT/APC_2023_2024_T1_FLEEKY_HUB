@@ -234,7 +234,8 @@ def update_status(request, order_id):
             print(f"Product with name '{product.name}' does not exist")
 
     # Call the get_possible_combinations function here
-    possible_combinations = get_possible_combinations(order.id)
+    thread_colors = extract_colors_from_thread_materials()  # Extract colors from Raw Materials Thread
+    possible_combinations = get_possible_combinations(order_id, thread_colors)
 
     # Create a list of dictionaries with necessary fields for the template
     combinations_data = []
@@ -242,22 +243,25 @@ def update_status(request, order_id):
         data = {
             'Product': combination['product'].name,
             'Fabric': combination['ingredients']['fabric_name'],
-            'ColorCount': combination['ingredients']['fabric']['count'],
             'Grommet': combination['ingredients']['grommet']['count'],
             'Rings': combination['ingredients']['rings']['count'],
             'Thread': combination['ingredients']['thread']['count'],
-            'PossibleProductCount': combination['possible_count']  # New field for possible product count
+            'FabricColor': ', '.join([color.capitalize() for color in combination.get('matched_fabric_colors', [])]),
+            'ThreadColor': ', '.join([material.name for material in combination.get('matched_materials', [])]),
+            'fabrics_colors': combination.get('fabrics_colors', []),
+            'PossibleProductCount': combination['possible_count']
         }
+
         combinations_data.append(data)
 
+    # Pass the updated combinations data to the template
     return render(request, 'update/update-status.html', {
         'order': order,
         'status_choices': Order.STATUS_CHOICES,
         'fabric_names': fabric_names,
         'ordered_fabrics': ordered_fabrics,
-        'combinations_data': combinations_data,  # Pass the updated combinations data to the template
+        'combinations_data': combinations_data,
     })
-
 
 
 def get_possible_combinations_with_count(order_id):
@@ -325,7 +329,15 @@ def calculate_possible_product_count(product, ingredients_needed, available_mate
 def get_ingredients_needed(product, thread_colors):
     product_category = product.category
     curtain_ingredients = CurtainIngredients.objects.filter(fabric=product_category.fabric)
-    ingredients_needed = {}
+    ingredients_needed = {
+        'fabric_name': product_category.fabric,
+        'fabric_color': None,  # Initialize fabric_color as None
+        'fabric': None,  # Initialize fabric as None
+        'grommet': None,  # Initialize grommet as None
+        'rings': None,  # Initialize rings as None
+        'thread': None,  # Initialize thread as None
+        'length': None  # Initialize length as None
+    }
     
     for ingredient in curtain_ingredients:
         # Extract color from the ingredient's fabric name
@@ -361,11 +373,14 @@ def get_ingredients_needed(product, thread_colors):
                 'unit': ingredient.length_unit
             }
         }
+        
 
     return ingredients_needed
 
 
-def get_possible_combinations(order_id):
+
+
+def get_possible_combinations(order_id, thread_colors):
     order = Order.objects.get(id=order_id)
     ordered_products = OrderItem.objects.filter(order=order)
 
@@ -377,12 +392,43 @@ def get_possible_combinations(order_id):
     for fabric_material in FabricMaterial.objects.all():
         available_fabric_materials[fabric_material.fabric_name] += fabric_material.fabric_fcount
 
-    thread_colors = extract_colors_from_thread_materials()  # Extract colors from Raw Materials Thread
-
     possible_combinations = []
     for item in ordered_products:
         product = item.product
+        color = product.color  # Assuming you've extracted the color from the product
+        ordered_product_name = product.category.fabric  # Assuming you've extracted the fabric name from the product
+        print('Fabric Name: ', ordered_product_name)
+        print('Product Item: ', item)
+        print('Product Color: ', color)
+
+        # Loop through fabric materials to find a match
+        fabric_materials = FabricMaterial.objects.all()
+        matched_fabrics = []
+        print('color (x)' ,color)
+        
+        matched_fabrics = set()
+        matched_fabric_colors = set()
+        fabrics_colors = []
+
+        for fabric_material in fabric_materials:
+            if fabric_material.fabric == ordered_product_name and fabric_material.color.lower() == color.lower():
+                matched_fabrics.add(fabric_material)
+                matched_fabric_colors.add(fabric_material.color)
+                fabrics_colors.append(fabric_material.color.lower())  # Ensure lowercase consistency for comparison
+                
+        
+
+       
+        # Loop through materials to find a match based on color
+        materials = Material.objects.filter(type='Raw Materials Thread')
+        matched_materials = []
+
+        for material in materials:
+            if color.lower() in material.name.lower():
+                matched_materials.append(material)
+
         ingredients_needed = get_ingredients_needed(product, thread_colors)
+
         if can_produce_product(ingredients_needed, available_materials, available_fabric_materials):
             possible_product_count = calculate_possible_product_count(
                 product, ingredients_needed, available_materials, available_fabric_materials
@@ -390,9 +436,16 @@ def get_possible_combinations(order_id):
             possible_combinations.append({
                 'product': product,
                 'ingredients': ingredients_needed,
-                'possible_count': possible_product_count
+                'possible_count': possible_product_count,
+                'matched_fabrics': matched_fabrics,
+                'matched_materials': matched_materials,
+                'fabrics_colors': fabrics_colors,  # Include 'fabrics_colors' in the combination data
             })
 
+            print ('matched fabrics: ', matched_fabrics)
+            print ('matched materials: ', matched_materials)
+            print('matched_fabric_colors: ', matched_fabric_colors)
+            print("Fabric Colors:", fabrics_colors)
     return possible_combinations
 
 
@@ -418,7 +471,6 @@ def can_produce_product(ingredients_needed, available_materials, available_fabri
             if fabric_name in available_fabric_materials:
                 if available_fabric_materials[fabric_name] < count_needed:
                     return False  # Not enough fabric material in stock
-
     return True
 
 
@@ -429,11 +481,67 @@ def extract_colors_from_thread_materials():
     for material in thread_materials:
         # Assuming the name has the color as the first word before space
         color = material.name.split(' ')[0].lower()
-        colors.add(color)
-
-        print(colors)
+        colors.add(color.capitalize())  # Capitalize the extracted color
 
     return colors
+
+
+def get_fabric_color(fabric_name):
+    try:
+        fabric = FabricMaterial.objects.filter(fabric=fabric_name).first()
+        return fabric.color.capitalize() if fabric else 'Color Not Found'
+    except FabricMaterial.DoesNotExist:
+        return 'Color Not Found'
+
+def get_thread_color(thread_colors, fabric_name):
+    try:
+        fabric_color = get_fabric_color(fabric_name)
+        for color in thread_colors:
+            if fabric_color.lower() in color.lower():
+                return color.capitalize()
+    except FabricMaterial.DoesNotExist:
+        pass
+    return 'Color Not Found'
+
+# Function to identify fabric colors from ordered products
+def get_fabric_colors_from_order(order_id):
+    ordered_products = OrderItem.objects.filter(order_id=order_id)
+    fabric_colors = set()
+
+    for item in ordered_products:
+        product = item.product
+        fabric_name = product.category.fabric.lower()
+        fabric_colors.add(fabric_name)
+
+    return fabric_colors
+
+# Function to match fabric colors with material colors
+def match_fabric_color_with_materials(fabric_colors):
+    fabric_material_colors = FabricMaterial.objects.values_list('fabric_color', flat=True)
+    matched_colors = []
+
+    for fabric_color in fabric_colors:
+        for material_color in fabric_material_colors:
+            if fabric_color in material_color.lower():
+                matched_colors.append(material_color.capitalize())
+                break
+
+    return matched_colors
+
+# Function to match thread colors with material colors
+def match_thread_color_with_materials(thread_colors):
+    material_thread_colors = Material.objects.filter(type='Raw Materials Thread').values_list('name', flat=True)
+    matched_colors = []
+
+    for thread_color in thread_colors:
+        for material_color in material_thread_colors:
+            if thread_color.lower() in material_color.lower():
+                matched_colors.append(material_color.split()[0].capitalize())
+                break
+
+    return matched_colors
+
+
 
 
 def handle_order_confirmation(order):

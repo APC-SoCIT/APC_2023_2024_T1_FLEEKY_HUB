@@ -167,17 +167,16 @@
 
     <!-- Materials & Fabric Materials Container -->
     <div class="card">
-        <h2>Possible Combinations</h2>
+        <h2>Components</h2>
         <table>
             <thead>
                 <tr>
                     <th>Product</th>
                     <th>Fabric</th>
-                    <th>Color Count</th>
                     <th>Grommet</th>
                     <th>Rings</th>
                     <th>Thread</th>
-                    <th>Possible Product Count</th> <!-- New column -->
+                    <th>Color</th>
                 </tr>
             </thead>
             <tbody>
@@ -185,16 +184,29 @@
                     <tr>
                         <td>{{ combination.Product }}</td>
                         <td>{{ combination.Fabric }}</td>
-                        <td>{{ combination.ColorCount }}</td>
                         <td>{{ combination.Grommet }}</td>
                         <td>{{ combination.Rings }}</td>
                         <td>{{ combination.Thread }}</td>
-                        <td>{{ combination.PossibleProductCount }}</td> <!-- Display the PossibleProductCount -->
+                        <td>
+                            Fabric: {% if combination.fabrics_colors %}
+                            {% for color in combination.fabrics_colors %}
+                                {{ color }}{% if not forloop.last %}, {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            No Fabric Color
+                        {% endif %}
+                        - Material: {{ combination.ThreadColor }}
+                        </td>
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+    
+    
+    
+    
+    
     
     
     

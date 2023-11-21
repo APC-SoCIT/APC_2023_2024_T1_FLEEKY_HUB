@@ -1,7 +1,7 @@
 {% extends 'navbar/dashboard-navbar.html' %}
 {% block content %}
 <head>
-    <title>All Curtain Ingredients</title>
+    <title>All Curtain Components</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
         /* Custom CSS styles */
@@ -42,7 +42,7 @@
 </head>
 <body>
     <div class="container mt-4">
-        <h2>All Curtain Ingredients</h2>
+        <h2>All Curtain Components</h2>
         {% if curtain_ingredients %}
             {% for curtain_ingredient in curtain_ingredients %}
                 <div class="ingredient-box" onclick="toggleDetails('{{ curtain_ingredient.id }}')">
