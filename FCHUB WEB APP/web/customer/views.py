@@ -110,7 +110,6 @@ class CustomAuthenticationForm(AuthenticationForm):
 def is_customer(user):
     return user.groups.filter(name='CUSTOMER').exists()
 class CustomLoginView(LoginView):
-    cache.clear()  # Clear the cache for all users
     template_name = 'registration/login.html'
 
     def form_valid(self, form):
@@ -130,8 +129,6 @@ class CustomLoginView(LoginView):
 
         else:
             return super().form_invalid(form)
-        
-        
 
     
 def customer_logout(request):
@@ -141,7 +138,6 @@ def customer_logout(request):
 
 @login_required
 def customer_home_view(request):
-    cache.clear()  # Clear the cache for all users
     customer = request.user.customer
     fabric_type = request.GET.get('fabric_type')
     set_type = request.GET.get('set_type')
@@ -162,8 +158,6 @@ def customer_home_view(request):
     
     # Render the template with the filtered products and choices
     return render(request, 'customer/home.html', {'customer':customer,'products': products, 'FABRIC_CHOICES': fabric_choices, 'SET_TYPE_CHOICES': set_type_choices})
-
-
 
 
 

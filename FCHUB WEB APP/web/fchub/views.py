@@ -1,4 +1,5 @@
 from collections import defaultdict
+from email.message import EmailMessage
 from django.core.mail import send_mail
 import calendar
 from decimal import Decimal
@@ -912,13 +913,7 @@ def edit_product(request, pk):
     if request.method == 'POST':
         form = ProductForm(request.POST, request.FILES, instance=product)
         if form.is_valid():
-            # Update the existing product details
             form.save()
-
-            # Generate a new custom_id
-            product.custom_id = product.generate_random_custom_id()
-            product.save()
-
             return redirect('fchub:products')
     else:
         form = ProductForm(instance=product)
@@ -1000,7 +995,7 @@ def add_regular_material(request):
         form = MaterialForm(request.POST)
 
         if form.is_valid():
-            name = form.cleaned_data['name']
+            name = form.cleaned_data['name'].lower()
             custom_material_id = name[:2] + datetime.now().strftime("%y%m%d%H")
             
             # Generate a unique ID based on name and random string
@@ -1099,99 +1094,6 @@ def edit_fabric_material(request, material_id):
         form = FabricMaterialForm(instance=fabric_material)
 
     return render(request, 'edit/edit-fabric-material.html', {'form': form})
-
-
-@login_required
-def duplicate_category(request, category_id):
-    original_category = Category.objects.get(id=category_id)
-
-    # Create a new category with the same attributes as the original
-    new_category = Category.objects.create(
-        fabric=original_category.fabric,
-        setType=original_category.setType,
-        description=original_category.description,
-        # Add other fields as needed
-    )
-
-    # Redirect to the edit page for the new category
-    return redirect('fchub:edit-category', category_id=new_category.id)
-
-
-
-@login_required
-def duplicate_product(request, product_id):
-    # Get the original product
-    original_product = get_object_or_404(Product, id=product_id)
-
-    # Duplicate the product
-    new_product = Product.objects.create(
-        stock=original_product.stock,
-        name=original_product.name,
-        product_image=original_product.product_image,
-        price=original_product.price,
-        category=original_product.category,
-        color=original_product.color,
-        description=original_product.description,
-    )
-
-    # Generate a new unique custom_id for the duplicated product
-    new_product.custom_id = f"{new_product.generate_random_custom_id()}"
-    new_product.save()
-
-    # Redirect to the edit page of the duplicated product
-    return redirect('fchub:edit-product', pk=new_product.id)
-
-
-@login_required
-def duplicate_regular_material(request, material_id):
-    original_material = Material.objects.get(id=material_id)
-
-    if request.method == 'POST':
-        form = MaterialForm(request.POST, instance=original_material)
-        if form.is_valid():
-            # Modify fields or add additional logic here if needed
-            duplicated_material = form.save(commit=False)
-
-            # Remove "raw" from the name if present
-            duplicated_material.name = duplicated_material.name.replace("raw", "").strip()
-
-            # Generate a new custom ID and remove "raw" if present
-            duplicated_material.Custom_material_id = duplicated_material.generate_custom_material_id().replace("raw", "")
-
-            duplicated_material.id = None  # Set to None to create a new instance
-            duplicated_material.save()
-            return redirect('fchub:materials')
-    else:
-        form = MaterialForm(instance=original_material)
-
-    return render(request, 'edit/duplicate-regular-material.html', {'form': form})
-
-
-
-@login_required
-def duplicate_fabric_material(request, fabric_material_id):
-    original_fabric_material = get_object_or_404(FabricMaterial, id=fabric_material_id)
-
-    if request.method == 'POST':
-        form = FabricMaterialForm(request.POST, instance=original_fabric_material)
-        if form.is_valid():
-            # Modify fields or add additional logic here if needed
-            duplicated_fabric_material = form.save(commit=False)
-            
-            # Remove "raw" from the fabric_material_id if present
-            duplicated_fabric_material.fabric_material_id = duplicated_fabric_material.generate_fabric_material_id().replace("raw", "")
-            
-            
-            duplicated_fabric_material.id = None  # Set to None to create a new instance
-            duplicated_fabric_material.save()
-            
-            messages.success(request, 'Fabric Material duplicated successfully!')
-            return redirect('fchub:materials')
-    else:
-        form = FabricMaterialForm(instance=original_fabric_material)
-
-    return render(request, 'edit/duplicate-fabric-material.html', {'form': form})
-
 
 
 
@@ -2750,7 +2652,7 @@ def send_low_stock_email_view(request, item_id):
     # Send low stock email for the specific item
     send_low_stock_email(item)
     
-    return HttpResponse("Low stock alert email sent successfully")
+    return HttpResponse("Low stock alert email sent successfully")  # A simple response to indicate success
 
 def send_low_stock_email(item):
     subject = f"Low Stock Alert: {item}"
@@ -2760,10 +2662,11 @@ def send_low_stock_email(item):
 
     try:
         # Send email to supplier
-        send_mail(subject, message, 'development.fleekyhub@gmail.com', [supplier_email])
+        send_mail(subject, message, 'development.fleekyhub@gmail.com', [supplier_email], fail_silently=False,)
 
         # Notify client if needed
-        send_mail(subject, message, 'development.fleekyhub@gmail.com', [client_email])
+        send_mail(subject, message, 'development.fleekyhub@gmail.com', [client_email], fail_silently=False,)
+
     except Exception as e:
         # Handle email sending failure gracefully
         print(f"Failed to send email: {e}")
@@ -2772,6 +2675,9 @@ def send_low_stock_email(item):
 def inventory_view(request):
     # Fetch all Inventory items
     inventory_items = Inventory.objects.all()
+    materials = Material.objects.all()
+    fabric_materials = FabricMaterial.objects.all()
+    products = Product.objects.all()
 
     low_stock_items = []
 
@@ -2779,31 +2685,43 @@ def inventory_view(request):
     for item in inventory_items:
         if item.quantity <= 25:
             low_stock_items.append(item)
-            send_low_stock_email(item)
 
-    # Send emails for low stock items to supplier and client
-    for item in low_stock_items:
-        # Customize the email message and recipient emails as needed
-        subject = f"Low Stock Alert: {item.name}"
-        message = f"The stock for {item.name} is running low. Current quantity: {item.quantity}. Please replenish."
-        supplier_email = "garneil51@gmail.com"  # Replace with actual supplier email
-        client_email = "clonedspot@gmail.com"  # Replace with actual client email
+    # Check inventory levels for materials
+    for item in materials:
+        if item.qty <= 25:
+            low_stock_items.append(item)
+
+    # Check inventory levels for fabric materials
+    for item in fabric_materials:
+        if item.fabric_qty <= 25:
+            low_stock_items.append(item)
+
+    # Check inventory levels for products
+    for item in products:
+        if item.stock <= 25:
+            low_stock_items.append(item)
+
+    # If there are 10 or more low stock items, send an email
+    if len(low_stock_items) >= 10:
+        subject = "Low Stock Alert"
+        # List all the names of the low stock items
+        item_names = ", ".join([str(item) for item in low_stock_items])
+        message = f"There are {len(low_stock_items)} items with a stock less than 25. The items are: {item_names}. Please replenish."
+        supplier_email = "clonedspot@gmail.com"  # Replace with actual supplier email
+        client_email = "garneil51@gmail.com"  # Replace with actual client email
 
         try:
             # Send email to supplier
-            send_mail(subject, message, 'development.fleekyhub@gmail.com', [supplier_email])
+            send_mail(subject, message, 'development.fleekyhub@gmail.com', [supplier_email], fail_silently=False,)
 
             # Notify client if needed
-            send_mail(subject, message, 'development.fleekyhub@gmail.com', [client_email])
+            send_mail(subject, message, 'development.fleekyhub@gmail.com', [client_email], fail_silently=False,)
+
         except Exception as e:
             # Handle email sending failure gracefully
             print(f"Failed to send email: {e}")
             # Log the error or take necessary action
 
-    materials = Material.objects.all()
-    fabric_materials = FabricMaterial.objects.all()
-    products = Product.objects.all()
-    
     return render(request, 'view/inventory.html', {
         'inventory_items': inventory_items,
         'low_stock_items': low_stock_items,
@@ -2812,6 +2730,9 @@ def inventory_view(request):
         'products': products,
         # Other context data as needed
     })
+
+
+
 
 def generate_possible_combinations():
     # Fetch all available materials
