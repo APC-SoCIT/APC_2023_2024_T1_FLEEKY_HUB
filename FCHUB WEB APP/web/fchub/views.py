@@ -1,4 +1,5 @@
 from collections import defaultdict
+from django.core.mail import send_mail
 import calendar
 from decimal import Decimal
 from io import TextIOWrapper
@@ -197,6 +198,99 @@ def calculate_count(setType, qty):
     return multiplier * qty
 
 
+def get_fabric_material_count(fabric_name, color):
+    fabric_count = FabricMaterial.objects.filter(
+        fabric_name__iexact=fabric_name, color__iexact=color
+    ).aggregate(total_count=Sum('fabric_fcount'))['total_count'] or 0
+    return fabric_count
+
+
+def get_material_count(type, name):
+    material_count = Material.objects.filter(type=type, name__iexact=name).aggregate(total_count=Sum('count'))['total_count'] or 0
+    return material_count
+
+def check_product_availability(order_id):
+    order_items = OrderItem.objects.filter(order_id=order_id)
+
+    fabric_names = set()
+    fabric_colors = set()
+
+    for item in order_items:
+        fabric_names.add(item.product.category.fabric.lower())
+        fabric_colors.add(item.product.color.lower())
+        if 'thread' in item.product.color.lower():
+            color_parts = item.product.color.lower().split(' thread')
+            color = color_parts[0].strip()
+            fabric_colors.add(color.lower())
+
+    fabric_count_total = 0
+
+    distinct_fabric_names = FabricMaterial.objects.values_list('fabric_name', flat=True).distinct()
+
+    for fabric_name in distinct_fabric_names:
+        for fabric_color in fabric_colors:
+            fabric_count = get_fabric_material_count(fabric_name, fabric_color)
+            fabric_count_total += fabric_count
+
+    separate_colors = [color.split(' thread')[0].strip() for color in fabric_colors if 'thread' in color.lower()]
+
+    distinct_curtain_fabric_names = CurtainIngredients.objects.values_list('fabric', flat=True).distinct()
+
+    total_possible_qty = 0  # Initialize variable to count possible creations
+
+    for fabric_name in distinct_curtain_fabric_names:
+        curtain_ingredients_for_name = CurtainIngredients.objects.filter(fabric=fabric_name)
+
+        req_fabric_count = sum(ingredient.fabric_count for ingredient in curtain_ingredients_for_name)
+        req_grommet_count = sum(ingredient.grommet_count for ingredient in curtain_ingredients_for_name)
+        req_rings_count = sum(ingredient.rings_count for ingredient in curtain_ingredients_for_name)
+        req_thread_count = sum(ingredient.thread_count for ingredient in curtain_ingredients_for_name)
+        total_length_required = sum(ingredient.length for ingredient in curtain_ingredients_for_name)
+
+        try:
+            curtain_length = CurtainIngredients.objects.get(name=fabric_name)
+            length = curtain_length.length
+        except CurtainIngredients.DoesNotExist:
+            length = 0
+
+        thread_sum = 0
+        rings_sum = 0
+        grommet_sum = 0
+
+        for fabric_name in fabric_names:
+            for color in fabric_colors:
+                fabric_count_total += FabricMaterial.objects.filter(fabric_name=fabric_name, color=color).aggregate(total_count=Sum('fabric_fcount'))['total_count'] or 0
+                thread_sum += Material.objects.filter(type='Raw Materials Thread', name__iexact=f'{color.capitalize()} Thread').aggregate(total_thread=Sum('count'))['total_thread'] or 0
+                rings_sum += Material.objects.filter(type='Raw Materials Attachments', name__iexact='Rings').aggregate(total_ring=Sum('count'))['total_ring'] or 0
+                grommet_sum += Material.objects.filter(type='Raw Materials Attachments', name__iexact='Grommet Belt').aggregate(total_grommet=Sum('count'))['total_grommet'] or 0
+                
+        fabric_colors = set(color.lower() for color in fabric_colors)
+
+        # Calculate quantity based on length for each creation
+        for ingredient in curtain_ingredients_for_name:
+            if ingredient.length > 0:
+                total_possible_qty += 1  # Increment quantity for each creation with non-zero length
+
+    total_fabric_materials = FabricMaterial.objects.all().count()
+    total_materials = Material.objects.all().count()
+
+    return {
+        'fabric_count_total': fabric_count_total,
+        'req_fabric_count': req_fabric_count,
+        'req_grommet_count': req_grommet_count,
+        'req_rings_count': req_rings_count,
+        'req_thread_count': req_thread_count,
+        'total_length_required': total_length_required,
+        'total_possible_qty': total_possible_qty , 
+        'total_fabric_materials': total_fabric_materials,  # Total fabric materials count
+        'total_materials': total_materials  # Total materials count
+    }
+
+
+
+
+
+
 @login_required
 def update_status(request, order_id):
     order = Order.objects.get(id=order_id)
@@ -249,18 +343,28 @@ def update_status(request, order_id):
             'FabricColor': ', '.join([color.capitalize() for color in combination.get('matched_fabric_colors', [])]),
             'ThreadColor': ', '.join([material.name for material in combination.get('matched_materials', [])]),
             'fabrics_colors': combination.get('fabrics_colors', []),
-            'PossibleProductCount': combination['possible_count']
+            'PossibleProductCount': combination['possible_count'],
+
         }
 
         combinations_data.append(data)
+        availability_data = check_product_availability(order_id)
+    
 
-    # Pass the updated combinations data to the template
     return render(request, 'update/update-status.html', {
         'order': order,
         'status_choices': Order.STATUS_CHOICES,
         'fabric_names': fabric_names,
         'ordered_fabrics': ordered_fabrics,
         'combinations_data': combinations_data,
+        'req_fabric_count': availability_data['req_fabric_count'],
+        'req_grommet_count': availability_data['req_grommet_count'],
+        'req_rings_count': availability_data['req_rings_count'],
+        'req_thread_count': availability_data['req_thread_count'],
+        'total_length_required': availability_data['total_length_required'],
+        'total_possible_qty': availability_data['total_possible_qty'],
+        'total_fabric_materials': availability_data['total_fabric_materials'],
+        'total_materials': availability_data['total_materials'],    
     })
 
 
@@ -2540,17 +2644,75 @@ class CsvDataModelTrainer(TemplateView):
     
 
 
+def send_low_stock_email_view(request, item_id):
+    # Retrieve the inventory item
+    item = Inventory.objects.get(id=item_id)
+    
+    # Send low stock email for the specific item
+    send_low_stock_email(item)
+    
+    return HttpResponse("Low stock alert email sent successfully")
+
+def send_low_stock_email(item):
+    subject = f"Low Stock Alert: {item}"
+    message = f"The stock for {item} is running low. Current quantity: {item.quantity}. Please replenish."
+    supplier_email = "clonedspot@gmail.com"  # Replace with actual supplier email
+    client_email = "garneil51@gmail.com"  # Replace with actual client email
+
+    try:
+        # Send email to supplier
+        send_mail(subject, message, 'development.fleekyhub@gmail.com', [supplier_email])
+
+        # Notify client if needed
+        send_mail(subject, message, 'development.fleekyhub@gmail.com', [client_email])
+    except Exception as e:
+        # Handle email sending failure gracefully
+        print(f"Failed to send email: {e}")
+        # Log the error or take necessary action
+
 def inventory_view(request):
+    # Fetch all Inventory items
+    inventory_items = Inventory.objects.all()
+
+    low_stock_items = []
+
+    # Check inventory levels and collect low stock items
+    for item in inventory_items:
+        if item.quantity <= 25:
+            low_stock_items.append(item)
+            send_low_stock_email(item)
+
+    # Send emails for low stock items to supplier and client
+    for item in low_stock_items:
+        # Customize the email message and recipient emails as needed
+        subject = f"Low Stock Alert: {item.name}"
+        message = f"The stock for {item.name} is running low. Current quantity: {item.quantity}. Please replenish."
+        supplier_email = "garneil51@gmail.com"  # Replace with actual supplier email
+        client_email = "clonedspot@gmail.com"  # Replace with actual client email
+
+        try:
+            # Send email to supplier
+            send_mail(subject, message, 'development.fleekyhub@gmail.com', [supplier_email])
+
+            # Notify client if needed
+            send_mail(subject, message, 'development.fleekyhub@gmail.com', [client_email])
+        except Exception as e:
+            # Handle email sending failure gracefully
+            print(f"Failed to send email: {e}")
+            # Log the error or take necessary action
+
     materials = Material.objects.all()
     fabric_materials = FabricMaterial.objects.all()
     products = Product.objects.all()
-
+    
     return render(request, 'view/inventory.html', {
+        'inventory_items': inventory_items,
+        'low_stock_items': low_stock_items,
         'materials': materials,
         'fabric_materials': fabric_materials,
         'products': products,
+        # Other context data as needed
     })
-
 
 def generate_possible_combinations():
     # Fetch all available materials

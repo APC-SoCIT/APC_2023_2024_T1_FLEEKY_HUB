@@ -106,6 +106,8 @@ urlpatterns = [
    path('curtain-ingredients/add-ingredients', views.add_ingredients, name='add-ingredients'), 
    path('curtain-ingredients/edit-ingredient/<int:ingredient_id>/', views.edit_ingredient, name='edit-ingredient'),
    path('curtain-ingredients/delete-ingredient/<int:ingredient_id>/', views.delete_ingredient, name='delete-ingredient'),
+   
+   path('send-low-stock-email/<int:item_id>/', views.send_low_stock_email_view, name='send_low_stock_email_view'),
 
 
 ]
