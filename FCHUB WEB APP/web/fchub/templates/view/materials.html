@@ -24,14 +24,15 @@
         <td>{{ material.Custom_material_id }}</td>
         <td>{{ material.type }}</td>
         <td>{{ material.name }}</td>
-        <td>{{ material.unit }}</td>
-        <td>{{ material.count }}</td>
         <td>{{ material.qty }}</td>
+        <td>{{ material.count }}</td>
+        <td>{{ material.unit }}</td>
         <td>{{ material.description }}</td>
         <td>
-          <div class="container" margin="40px">
-            <a class="btn btn-primary rounded btn-xs" href="{% url 'fchub:edit-regular-material' material.id %}">Edit</a>
-            <a class="btn btn-danger rounded btn-xs" href="{% url 'fchub:delete-regular-material' material.id %}">Delete</a>                     
+          <div class="container" margin="1px">
+            <a class="btn btn-primary rounded btn-sm" href="{% url 'fchub:edit-regular-material' material.id %}">Edit</a>
+            <a class="btn btn-danger rounded btn-sm" href="{% url 'fchub:delete-regular-material' material.id %}">Delete</a>
+            <a class="btn btn-info rounded btn-sm" href="{% url 'fchub:duplicate-regular-material' material.id %}">Duplicate</a>                     
           </div>
         </td>
       </tr>
@@ -44,7 +45,7 @@
   </div>
 </div>
 
-<div class="container">
+<div class="container" margin="5px">
   <div class="panel panel-primary">
     <div class="panel-heading text-center">
       <h2 class="text-dark">Fabric Materials</h2>
@@ -69,14 +70,15 @@
         <td>{{ fabric_material.fabric_name }}</td>
         <td>{{ fabric_material.fabric }}</td>
         <td>{{ fabric_material.color }}</td>
-        <td>{{ fabric_material.fabric_fcount }}</td>
         <td>{{ fabric_material.fabric_qty }}</td>
+        <td>{{ fabric_material.fabric_fcount }}</td>
         <td>{{ fabric_material.fabric_unit }}</td>
         <td>{{ fabric_material.fabric_description }}</td>
         <td>
-          <div class="container" margin="40px">
-            <a class="btn btn-primary rounded btn-xs" href="{% url 'fchub:edit-fabric-material' fabric_material.id %}">Edit</a>
-            <a class="btn btn-danger rounded btn-xs" href="{% url 'fchub:delete-fabric-material' fabric_material.id %}">Delete</a>                     
+          <div class="container" margin="1px">
+            <a class="btn btn-primary rounded btn-sm" href="{% url 'fchub:edit-fabric-material' fabric_material.id %}">Edit</a>
+            <a class="btn btn-danger rounded btn-sm" href="{% url 'fchub:delete-fabric-material' fabric_material.id %}">Delete</a>
+            <a class="btn btn-info rounded btn-sm" href="{% url 'fchub:duplicate-fabric-material' fabric_material.id %}">Duplicate</a>                     
           </div>
         </td>
       </tr>

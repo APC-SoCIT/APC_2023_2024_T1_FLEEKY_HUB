@@ -912,7 +912,13 @@ def edit_product(request, pk):
     if request.method == 'POST':
         form = ProductForm(request.POST, request.FILES, instance=product)
         if form.is_valid():
+            # Update the existing product details
             form.save()
+
+            # Generate a new custom_id
+            product.custom_id = product.generate_random_custom_id()
+            product.save()
+
             return redirect('fchub:products')
     else:
         form = ProductForm(instance=product)
@@ -994,7 +1000,7 @@ def add_regular_material(request):
         form = MaterialForm(request.POST)
 
         if form.is_valid():
-            name = form.cleaned_data['name'].lower()
+            name = form.cleaned_data['name']
             custom_material_id = name[:2] + datetime.now().strftime("%y%m%d%H")
             
             # Generate a unique ID based on name and random string
@@ -1093,6 +1099,99 @@ def edit_fabric_material(request, material_id):
         form = FabricMaterialForm(instance=fabric_material)
 
     return render(request, 'edit/edit-fabric-material.html', {'form': form})
+
+
+@login_required
+def duplicate_category(request, category_id):
+    original_category = Category.objects.get(id=category_id)
+
+    # Create a new category with the same attributes as the original
+    new_category = Category.objects.create(
+        fabric=original_category.fabric,
+        setType=original_category.setType,
+        description=original_category.description,
+        # Add other fields as needed
+    )
+
+    # Redirect to the edit page for the new category
+    return redirect('fchub:edit-category', category_id=new_category.id)
+
+
+
+@login_required
+def duplicate_product(request, product_id):
+    # Get the original product
+    original_product = get_object_or_404(Product, id=product_id)
+
+    # Duplicate the product
+    new_product = Product.objects.create(
+        stock=original_product.stock,
+        name=original_product.name,
+        product_image=original_product.product_image,
+        price=original_product.price,
+        category=original_product.category,
+        color=original_product.color,
+        description=original_product.description,
+    )
+
+    # Generate a new unique custom_id for the duplicated product
+    new_product.custom_id = f"{new_product.generate_random_custom_id()}"
+    new_product.save()
+
+    # Redirect to the edit page of the duplicated product
+    return redirect('fchub:edit-product', pk=new_product.id)
+
+
+@login_required
+def duplicate_regular_material(request, material_id):
+    original_material = Material.objects.get(id=material_id)
+
+    if request.method == 'POST':
+        form = MaterialForm(request.POST, instance=original_material)
+        if form.is_valid():
+            # Modify fields or add additional logic here if needed
+            duplicated_material = form.save(commit=False)
+
+            # Remove "raw" from the name if present
+            duplicated_material.name = duplicated_material.name.replace("raw", "").strip()
+
+            # Generate a new custom ID and remove "raw" if present
+            duplicated_material.Custom_material_id = duplicated_material.generate_custom_material_id().replace("raw", "")
+
+            duplicated_material.id = None  # Set to None to create a new instance
+            duplicated_material.save()
+            return redirect('fchub:materials')
+    else:
+        form = MaterialForm(instance=original_material)
+
+    return render(request, 'edit/duplicate-regular-material.html', {'form': form})
+
+
+
+@login_required
+def duplicate_fabric_material(request, fabric_material_id):
+    original_fabric_material = get_object_or_404(FabricMaterial, id=fabric_material_id)
+
+    if request.method == 'POST':
+        form = FabricMaterialForm(request.POST, instance=original_fabric_material)
+        if form.is_valid():
+            # Modify fields or add additional logic here if needed
+            duplicated_fabric_material = form.save(commit=False)
+            
+            # Remove "raw" from the fabric_material_id if present
+            duplicated_fabric_material.fabric_material_id = duplicated_fabric_material.generate_fabric_material_id().replace("raw", "")
+            
+            
+            duplicated_fabric_material.id = None  # Set to None to create a new instance
+            duplicated_fabric_material.save()
+            
+            messages.success(request, 'Fabric Material duplicated successfully!')
+            return redirect('fchub:materials')
+    else:
+        form = FabricMaterialForm(instance=original_fabric_material)
+
+    return render(request, 'edit/duplicate-fabric-material.html', {'form': form})
+
 
 
 
