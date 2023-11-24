@@ -209,7 +209,6 @@ def get_fabric_material_count(fabric_name, color):
 def get_material_count(type, name):
     material_count = Material.objects.filter(type=type, name__iexact=name).aggregate(total_count=Sum('count'))['total_count'] or 0
     return material_count
-
 def check_product_availability(order_id):
     order_items = OrderItem.objects.filter(order_id=order_id)
 
@@ -226,18 +225,9 @@ def check_product_availability(order_id):
 
     fabric_count_total = 0
 
-    distinct_fabric_names = FabricMaterial.objects.values_list('fabric_name', flat=True).distinct()
-
-    for fabric_name in distinct_fabric_names:
-        for fabric_color in fabric_colors:
-            fabric_count = get_fabric_material_count(fabric_name, fabric_color)
-            fabric_count_total += fabric_count
-
-    separate_colors = [color.split(' thread')[0].strip() for color in fabric_colors if 'thread' in color.lower()]
-
     distinct_curtain_fabric_names = CurtainIngredients.objects.values_list('fabric', flat=True).distinct()
 
-    total_possible_qty = 0  # Initialize variable to count possible creations
+    total_possible_qty = float('inf')  # Initialize variable to a high value to find the minimum possible creations
 
     for fabric_name in distinct_curtain_fabric_names:
         curtain_ingredients_for_name = CurtainIngredients.objects.filter(fabric=fabric_name)
@@ -248,32 +238,44 @@ def check_product_availability(order_id):
         req_thread_count = sum(ingredient.thread_count for ingredient in curtain_ingredients_for_name)
         total_length_required = sum(ingredient.length for ingredient in curtain_ingredients_for_name)
 
-        try:
-            curtain_length = CurtainIngredients.objects.get(name=fabric_name)
-            length = curtain_length.length
-        except CurtainIngredients.DoesNotExist:
-            length = 0
-
         thread_sum = 0
         rings_sum = 0
         grommet_sum = 0
 
-        for fabric_name in fabric_names:
-            for color in fabric_colors:
-                fabric_count_total += FabricMaterial.objects.filter(fabric_name=fabric_name, color=color).aggregate(total_count=Sum('fabric_fcount'))['total_count'] or 0
-                thread_sum += Material.objects.filter(type='Raw Materials Thread', name__iexact=f'{color.capitalize()} Thread').aggregate(total_thread=Sum('count'))['total_thread'] or 0
-                rings_sum += Material.objects.filter(type='Raw Materials Attachments', name__iexact='Rings').aggregate(total_ring=Sum('count'))['total_ring'] or 0
-                grommet_sum += Material.objects.filter(type='Raw Materials Attachments', name__iexact='Grommet Belt').aggregate(total_grommet=Sum('count'))['total_grommet'] or 0
-                
-        fabric_colors = set(color.lower() for color in fabric_colors)
+        for color in fabric_colors:
+            fabric_count_total = FabricMaterial.objects.filter(fabric_name=fabric_name, color=color).aggregate(total_count=Sum('fabric_fcount'))['total_count'] or 0
+            thread_sum += Material.objects.filter(type='Raw Materials Thread', name__iexact=f'{color.capitalize()} Thread').aggregate(total_thread=Sum('count'))['total_thread'] or 0
+            rings_sum += Material.objects.filter(type='Raw Materials Attachments', name__iexact='Rings').aggregate(total_ring=Sum('count'))['total_ring'] or 0
+            grommet_sum += Material.objects.filter(type='Raw Materials Attachments', name__iexact='Grommet Belt').aggregate(total_grommet=Sum('count'))['total_grommet'] or 0
+            # Calculate quantity based on length for each creation
 
-        # Calculate quantity based on length for each creation
-        for ingredient in curtain_ingredients_for_name:
-            if ingredient.length > 0:
-                total_possible_qty += 1  # Increment quantity for each creation with non-zero length
+            # Compare required materials against available materials for this specific fabric type
+            possible_creations = min(
+                fabric_count_total // req_fabric_count,
+                thread_sum // req_thread_count,
+                rings_sum // req_rings_count,
+                grommet_sum // req_grommet_count
+            )
+            total_possible_qty = min(total_possible_qty, possible_creations)
+            print(total_possible_qty)
 
     total_fabric_materials = FabricMaterial.objects.all().count()
     total_materials = Material.objects.all().count()
+
+    fabric_materials_total_qty = FabricMaterial.objects.aggregate(total_qty=Sum('fabric_fcount'))['total_qty'] or 0
+
+    # Calculate possible quantity based on Materials
+    thread_sum = Material.objects.filter(type='Raw Materials Thread').aggregate(total_thread=Sum('count'))['total_thread'] or 0
+    rings_sum = Material.objects.filter(type='Raw Materials Attachments', name__iexact='Rings').aggregate(total_ring=Sum('count'))['total_ring'] or 0
+    grommet_sum = Material.objects.filter(type='Raw Materials Attachments', name__iexact='Grommet Belt').aggregate(total_grommet=Sum('count'))['total_grommet'] or 0
+
+    # Calculate the minimum possible creations based on both sources
+    total_possible_qty_combined = min(
+        fabric_materials_total_qty // req_fabric_count,
+        thread_sum // req_thread_count,
+        rings_sum // req_rings_count,
+        grommet_sum // req_grommet_count
+    )
 
     return {
         'fabric_count_total': fabric_count_total,
@@ -282,9 +284,13 @@ def check_product_availability(order_id):
         'req_rings_count': req_rings_count,
         'req_thread_count': req_thread_count,
         'total_length_required': total_length_required,
-        'total_possible_qty': total_possible_qty , 
+        'total_possible_qty': total_possible_qty,
         'total_fabric_materials': total_fabric_materials,  # Total fabric materials count
-        'total_materials': total_materials  # Total materials count
+        'total_materials': total_materials,  # Total materials count
+        'total_possible_qty_fabric': fabric_materials_total_qty,
+        'total_possible_qty_materials': min(thread_sum, rings_sum, grommet_sum),
+        'total_possible_qty_combined': total_possible_qty_combined,
+
     }
 
 
@@ -292,21 +298,42 @@ def check_product_availability(order_id):
 
 
 
+
+from django.db import IntegrityError
 @login_required
 def update_status(request, order_id):
     order = Order.objects.get(id=order_id)
     customer_profile = order.customer
 
+    # Get the current status of the order
+    current_status = order.status
+    print(current_status)
+    # Define available status transitions based on the current status
+    available_transitions = {
+        'Pending': ['Order Confirmed'],
+        'Order Confirmed': ['Out for Delivery'],
+        'Out for Delivery': ['Delivered']
+    }
+    error_message = None
+    allowed_choices = available_transitions.get(current_status, [])
     if request.method == 'POST':
         new_status = request.POST.get('new_status')
-        if new_status == 'Order Confirmed':
-            handle_order_confirmation(order)
-        elif new_status == 'Delivered':
-            handle_delivered_order(request, order)
-            return redirect('fchub:orders')
-        order.status = new_status
-        order.save()
 
+        # Check if the new status is allowed based on the current status
+        if new_status in available_transitions.get(current_status, []):
+            if new_status == 'Delivered':
+                handle_order_confirmation(order)
+            elif new_status == 'Delivered':
+                handle_delivered_order(request, order)
+                return redirect('fchub:orders')
+
+            # Update the order status
+            order.status = new_status
+            order.save()
+        else:
+            # Handle invalid status change attempt here (e.g., show a message)
+            print("Invalid status transition attempted.")
+        
     ordered_products = OrderItem.objects.filter(order=order)
     ordered_fabrics = []
     fabric_names = []  # Store fabric names separately
@@ -324,10 +351,13 @@ def update_status(request, order_id):
 
             fabric_name = product_instance.category.fabric
             fabric_names.append(fabric_name)
+            if item.quantity > inventory_quantity:
+                error_message = "Could not create product due to low stock."
+                break  # Break the loop on the first occurrence of low stock
 
         except Product.DoesNotExist:
             print(f"Product with name '{product.name}' does not exist")
-
+    
     # Call the get_possible_combinations function here
     thread_colors = extract_colors_from_thread_materials()  # Extract colors from Raw Materials Thread
     possible_combinations = get_possible_combinations(order_id, thread_colors)
@@ -345,6 +375,7 @@ def update_status(request, order_id):
             'ThreadColor': ', '.join([material.name for material in combination.get('matched_materials', [])]),
             'fabrics_colors': combination.get('fabrics_colors', []),
             'PossibleProductCount': combination['possible_count'],
+            
 
         }
 
@@ -366,6 +397,9 @@ def update_status(request, order_id):
         'total_possible_qty': availability_data['total_possible_qty'],
         'total_fabric_materials': availability_data['total_fabric_materials'],
         'total_materials': availability_data['total_materials'],    
+        'allowed_choices': allowed_choices,
+        'total_possible_qty_combined': availability_data['total_possible_qty_combined'],  
+        'error_message': error_message,
     })
 
 
@@ -647,8 +681,6 @@ def match_thread_color_with_materials(thread_colors):
     return matched_colors
 
 
-
-
 def handle_order_confirmation(order):
     order_items = order.order_items.all()
 
@@ -663,8 +695,16 @@ def handle_order_confirmation(order):
     with transaction.atomic():
         for idx, product in enumerate(products_to_update):
             purchased_quantity = purchased_quantities[idx]
+            if purchased_quantity > product.stock:
+                raise IntegrityError("Low stock. Cannot create the order due to insufficient inventory.")
             product.stock -= purchased_quantity
             product.save()
+
+    # Return a success response if the order confirmation succeeds
+    response_data = {
+        'message': 'Order confirmed successfully.'
+    }
+    return JsonResponse(response_data)
 
 
 def handle_delivered_order(request, order):
@@ -673,7 +713,7 @@ def handle_delivered_order(request, order):
     if existing_successful_order:
         message = f"The order {order.order_number} has already been marked as delivered."
         return HttpResponse(message)
-
+    
     customer_profile = Customer.objects.get(user=order.customer)
     fname = customer_profile.first_name
     lname = customer_profile.last_name

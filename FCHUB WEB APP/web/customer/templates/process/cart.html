@@ -128,57 +128,79 @@
     }
   </style>
   <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
   <script>
     function confirmDelete(productName, productID) {
       if (confirm(`Are you sure you want to delete ${productName} from your cart?`)) {
         document.getElementById('deleteNotification').style.display = 'block';
-
+  
         // Auto-hide the notification message after a few seconds
         setTimeout(function () {
           document.getElementById('deleteNotification').style.display = 'none';
           window.location.href = `/customer/remove-from-cart/${productID}`;
         }, 1000);
-
+  
         return true;
       } else {
         return false;
       }
     }
-
+  
     function confirmClearAll() {
       if (confirm("Are you sure you want to clear all items from your cart?")) {
         window.location.href = "/customer/clear-cart"; // Redirect to clear cart URL
       }
     }
-
-    // Function to update the quantity
-    function updateQuantity(productID, action) {
-      // Send an AJAX request to update the quantity
-      const url = action === 'increase' ? `/customer/increase-quantity/${productID}` : `/customer/decrease-quantity/${productID}`;
-      
-      $.ajax({
-        url: url,
-        type: 'POST', // You can use POST or another method as appropriate
-        dataType: 'json',
-        success: function (data) {
-          // Update the client-side view with the updated cart data
-          $('#cart-table').html(data.cart_table);
-          $('#total-price').text(`Total ₱ ${data.total_price.toFixed(2)}`);
-        },
-      });
+  
+    function increaseQuantity(productID) {
+      const quantityInput = document.getElementById(`quantity-${productID}`);
+      quantityInput.value = parseInt(quantityInput.value) + 1;
+      updateQuantity(productID);
     }
-    function calculateTotalPrice() {
-      // You need to calculate the total price based on the updated quantities of items
-      // Fetch prices and quantities for each item and calculate the total
-      let totalPrice = 0;
-      {% for item in cart_items %}
-        const price{{ item.product.id }} = {{ item.product.price }};
-        const quantity{{ item.product.id }} = parseInt(document.getElementById('quantity-{{ item.product.id }}').textContent, 10);
-        totalPrice += price{{ item.product.id }} * quantity{{ item.product.id }};
-      {% endfor %}
-      return totalPrice;
+  
+    function decreaseQuantity(productID) {
+      const quantityInput = document.getElementById(`quantity-${productID}`);
+      if (parseInt(quantityInput.value) > 1) {
+        quantityInput.value = parseInt(quantityInput.value) - 1;
+        updateQuantity(productID);
+      }
     }
+    function updateQuantity(productID) {
+      const quantityInput = document.getElementById(`quantity-${productID}`);
+      const newQuantity = parseInt(quantityInput.value);
+    
+      if (!isNaN(newQuantity) && newQuantity >= 1) {
+        const url = `/customer/update-quantity/${productID}`;
+    
+        $.ajax({
+          url: url,
+          type: 'POST',
+          data: { quantity: newQuantity },  // Send the new quantity as POST data
+          dataType: 'json',
+          success: function (data) {
+            $('#total-price').text(`Total ₱ ${data.total_price.toFixed(2)}`);
+          },
+          error: function (xhr, status, error) {
+            console.error(xhr.responseText); // Log the detailed error message
+            alert('Failed to update quantity. Please try again.');
+          }
+        });
+      } else {
+        console.error('Invalid quantity');
+        alert('Please enter a valid quantity.');
+      }
+    }
+    
+    
+    
+    
+    
+    
   </script>
+  
+
 
   <div class="container cart-container">
     <h3 class="cart-title">My Cart</h3>
@@ -200,7 +222,13 @@
             <td>{{ item.product.name }}</td>
             <td>{{ item.product.description }}</td>
             <td>₱ {{ item.product.price }}</td>
-            <td> <span id="quantity-{{ item.product.id }}">{{ item.quantity }}</span> </td>
+            <td> <span id="quantity-{{ item.product.id }}">{{ item.quantity }}</span> 
+              <form method="post" action="{% url 'customer:update-quantity' item.product.id %}">
+                {% csrf_token %}
+                <input type="number" name="quantity" value="{{ item.quantity }}" min="1">
+                <button type="submit">Update</button>
+              </form>
+            </td>
             <td>
               <div class="quantity-controls">
                 

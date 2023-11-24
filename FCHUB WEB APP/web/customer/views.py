@@ -211,6 +211,26 @@ def cart_view(request):
         'total_quantity': total_quantity,
         'cart': cart,
     })
+from django.views.decorators.http import require_POST
+
+@login_required
+def update_quantity_view(request, product_id):
+    if request.method == 'POST':
+        new_quantity = int(request.POST.get('quantity', 0))
+        cart_item = get_object_or_404(CartItem, product_id=product_id, cart__customer=request.user.customer)
+
+        if new_quantity >= 1:
+            cart_item.quantity = new_quantity
+            cart_item.save()
+        # Redirect back to the cart view after updating the quantity
+        return redirect('customer:cart')
+    # Handle other cases or errors if necessary
+    return redirect('customer:cart')
+
+
+
+
+
 
 @login_required
 def add_to_cart_view(request, pk):

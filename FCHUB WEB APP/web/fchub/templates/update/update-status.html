@@ -120,6 +120,7 @@
     }
 </style>
 
+
 <div class="main-container">
     <!-- Change Order Status Card -->
     <div class="card">
@@ -129,18 +130,26 @@
 
         {% if order.status == 'Delivered' %}
             <p class="status-description">This order has already been marked as delivered.</p>
+            {% if error_message %}
+    <p>{{ error_message }}</p>
+{% endif %}
         {% else %}
-            <form method="post">
-                {% csrf_token %}
-                <label for="new_status" class="select-status">Select New Status:</label>
-                <select name="new_status" id="new_status">
-                    {% for choice in order.STATUS_CHOICES %}
+        <form method="post">
+            {% csrf_token %}
+            <label for="new_status" class="select-status">Select New Status:</label>
+            <select name="new_status" id="new_status">
+                {% for choice in order.STATUS_CHOICES %}
+                    {% if choice.0 in allowed_choices %}
                         <option value="{{ choice.0 }}">{{ choice.1 }}</option>
-                    {% endfor %}
-                </select>
-                <br>
-                <input type="submit" value="Change Status" class="submit-button">
-            </form>
+                    {% else %}
+                        <option value="{{ choice.0 }}" disabled>{{ choice.1 }}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+            <br>
+            <input type="submit" value="Change Status" class="submit-button">
+        </form>
+        
         {% endif %}
 
         <!-- Display product on hand and materials for creating/sewing -->
@@ -245,16 +254,27 @@
                     <!-- Add other required counts here -->
                     <p>Length Required: {{ total_length_required }} ft</p>
                     <div class="card">
-                        <p>Total Quantity that can be Accumulated: {{ total_possible_qty }}</p>
-                    </div>
+                        <p>Total Quantity that can be Accumulated: {{ total_possible_qty_combined }}</p>
 
+                    </div>
                 </div>
                 <br>
             </div>
         </div>
     </div>
     
-
+    <script>
+        function checkStock(event) {
+            var orderedQuantity = /* Extract the ordered quantity */;
+            var availableQuantity = /* Extract the available quantity */;
+    
+            // Check if ordered quantity exceeds available stock
+            if (orderedQuantity > availableQuantity) {
+                event.preventDefault(); // Prevent form submission
+                alert("Sorry, the ordered quantity exceeds the available stock. Please modify the quantity.");
+            }
+        }
+    </script>
 
 
 
