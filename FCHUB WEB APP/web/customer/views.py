@@ -575,7 +575,6 @@ def online_payment_view(request):
     line_items.append(vat_line_item)
 
     fname = f"{customer.first_name} {customer.last_name}"
-    
 
     # Prepare the payload for PayMongo API
     payload = {
@@ -624,6 +623,7 @@ def online_payment_view(request):
             checkout_url = payment_session_data.get("data", {}).get("attributes", {}).get("checkout_url")
             response = HttpResponseRedirect(checkout_url)
 
+            # Create Order instance for the successful payment
             order = Order.objects.create(
                 status="Pending",
                 customer=customer.user,  # Use the related User instance, assuming "user" is the correct attribute
@@ -633,8 +633,7 @@ def online_payment_view(request):
                 order_date=timezone.now(),
             )
 
-
-            # Create OrderProduct instances for each product in the cart
+            # Create OrderItem instances for each product in the cart
             for cart_item in cart_items:
                 OrderItem.objects.create(
                     order=order,
@@ -642,6 +641,18 @@ def online_payment_view(request):
                     quantity=cart_item.quantity,
                     item_total=cart_item.quantity * cart_item.product.price,
                 )
+
+            # Deduct inventory for each product in the cart
+            for cart_item in cart_items:
+                product_instance = cart_item.product
+                quantity_purchased = cart_item.quantity
+
+                if product_instance.stock >= quantity_purchased:
+                    product_instance.stock -= quantity_purchased
+                    product_instance.save()
+                    print(f"Deducted inventory for {product_instance.name}")
+                else:
+                    print(f"Insufficient stock for product: {product_instance.name}. Order not confirmed.")
 
             # Clear the cart after a successful payment
             cart_items.delete()

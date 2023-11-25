@@ -297,8 +297,6 @@ def check_product_availability(order_id):
 
 
 
-
-
 from django.db import IntegrityError
 @login_required
 def update_status(request, order_id):
@@ -316,16 +314,16 @@ def update_status(request, order_id):
     }
     error_message = None
     allowed_choices = available_transitions.get(current_status, [])
+    
     if request.method == 'POST':
         new_status = request.POST.get('new_status')
 
-        # Check if the new status is allowed based on the current status
         if new_status in available_transitions.get(current_status, []):
             if new_status == 'Delivered':
-                handle_order_confirmation(order)
-            elif new_status == 'Delivered':
-                handle_delivered_order(request, order)
-                return redirect('fchub:orders')
+                handle_order_delivery_confirmation(order)
+            elif new_status == 'Order Confirmed':  # Assuming online payment confirmation is for 'Order Confirmed'
+                handle_online_payment_confirmation(order)
+                # You can add more conditions or functions for other status transitions as needed
 
             # Update the order status
             order.status = new_status
@@ -401,7 +399,36 @@ def update_status(request, order_id):
         'total_possible_qty_combined': availability_data['total_possible_qty_combined'],  
         'error_message': error_message,
     })
+    
+    
+    
 
+def handle_online_payment_confirmation(order):
+    # Handle online payment confirmation logic here
+    pass
+
+def handle_order_delivery_confirmation(order):
+    # Handle order delivery confirmation logic here
+    # Deduct inventory for 'Cash on Delivery' orders when the status is 'Delivered'
+    for order_item in order.order_items.all():
+        product_instance = order_item.product
+        quantity_purchased = order_item.quantity
+
+        if order.payment_method != 'Online Payment':  # Adjust this condition based on your actual payment method field
+            if product_instance.stock >= quantity_purchased:
+                product_instance.stock -= quantity_purchased
+                product_instance.save()
+                print(f"Deducted inventory for {product_instance.name}")
+            else:
+                print(f"Insufficient stock for product: {product_instance.name}. Order not confirmed.")
+
+    # Update order status to 'Delivered'
+    order.status = 'Delivered'
+    order.save()
+
+    print(f"Order {order.order_number} marked as Delivered and moved to Successful Orders.")
+            
+            
 
 def get_possible_combinations_with_count(order_id):
     order = Order.objects.get(id=order_id)

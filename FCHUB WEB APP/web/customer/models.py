@@ -177,6 +177,7 @@ class CartItem(models.Model):
 
 
 
+
 class Order(models.Model):
     STATUS_CHOICES = (
         ('Pending', 'Pending'),
@@ -212,6 +213,10 @@ class Order(models.Model):
     def save(self, *args, **kwargs):
         self.generate_order_number()
         super().save(*args, **kwargs)
+
+
+
+
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_items')
